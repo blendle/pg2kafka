@@ -15,7 +15,7 @@ import (
 	"github.com/blendle/go-streamprocessor/streamclient/kafka"
 	"github.com/blendle/go-streamprocessor/streamclient/standardstream"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 // Event represents the queued event in the database
@@ -40,7 +40,9 @@ func main() {
 
 	logger.Init(conf)
 
-	db, err := sql.Open("postgres", os.Getenv("DB_URL"))
+	conninfo := os.Getenv("DB_URL")
+
+	db, err := sql.Open("postgres", conninfo)
 	if err != nil {
 		panic(err)
 	}
@@ -61,10 +63,22 @@ func main() {
 	}
 	defer producer.Close()
 
+	reportProblem := func(ev pq.ListenerEventType, err error) {
+		if err != nil {
+			logger.L.Error("Error handling postgres notify", zap.Error(err))
+		}
+	}
+	listener := pq.NewListener(conninfo, 10*time.Second, time.Minute, reportProblem)
+	if err := listener.Listen("outbound_event_queue"); err != nil {
+		logger.L.Error("Error listening to pg", zap.Error(err))
+	}
+
 	// Process any events left in the queue
 	ProcessEvents(producer, db)
 
-	// TODO: pg notify/listen
+	for {
+		waitForNotification(listener, producer, db)
+	}
 }
 
 // ProcessEvents queries the database for unprocessed events and produces them
@@ -72,17 +86,33 @@ func main() {
 func ProcessEvents(p stream.Producer, db *sql.DB) {
 	events, err := fetchUnprocessedRecords(db)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("process events: %v", err))
 	}
 
-	produceMessages(p, events)
+	produceMessages(p, events, db)
 }
 
-func produceMessages(p stream.Producer, events []*Event) {
+func waitForNotification(l *pq.Listener, p stream.Producer, db *sql.DB) {
+	for {
+		select {
+		case <-l.Notify:
+			// We actually receive the payload from the notify here, but in order to
+			// ensure that we never process events out-of-turn, we query the DB for
+			// all unprocessed events.
+			ProcessEvents(p, db)
+			return
+		case <-time.After(90 * time.Second):
+			go l.Ping()
+			return
+		}
+	}
+}
+
+func produceMessages(p stream.Producer, events []*Event, db *sql.DB) {
 	for _, event := range events {
 		msg, err := json.Marshal(event)
 		if err != nil {
-			panic(err)
+			panic(fmt.Sprintf("parsing message: %v", err))
 		}
 
 		p.Messages() <- &stream.Message{
@@ -91,13 +121,16 @@ func produceMessages(p stream.Producer, events []*Event) {
 			Timestamp: time.Now().UTC(),
 		}
 
-		// TODO: Mark event as processed
+		_, err = db.Exec("update outbound_event_queue set processed = true where id = $1", event.ID)
+		if err != nil {
+			panic(fmt.Sprintf("updating: %v", err))
+		}
 	}
 }
 
 func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
 	rows, err := db.Query(`
-		SELECT uuid, external_id, table_name, statement, data, created_at
+		SELECT id, uuid, external_id, table_name, statement, data, created_at
 		FROM outbound_event_queue
 		WHERE processed = false
 		ORDER BY created_at ASC
@@ -111,6 +144,7 @@ func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
 	for rows.Next() {
 		var msg Event
 		err = rows.Scan(
+			&msg.ID,
 			&msg.UUID,
 			&msg.ExternalID,
 			&msg.TableName,

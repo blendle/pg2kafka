@@ -6,6 +6,8 @@ DECLARE
   external_id varchar;
   changes jsonb;
   col record;
+  outbound_event record;
+  notification json;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     external_id := NEW.uuid; -- TODO: uuid or uid or id?
@@ -30,7 +32,11 @@ BEGIN
   END IF;
 
   INSERT INTO outbound_event_queue(external_id, table_name, statement, data)
-  VALUES (external_id, TG_TABLE_NAME, TG_OP, changes);
+  VALUES (external_id, TG_TABLE_NAME, TG_OP, changes)
+  RETURNING * INTO outbound_event;
+
+  notification := row_to_json(outbound_event);
+  PERFORM pg_notify('outbound_event_queue', notification::text);
 
   RETURN NULL;
 END
