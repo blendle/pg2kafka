@@ -1,0 +1,11 @@
+[[constraint]]
+  branch = "master"
+  name = "github.com/blendle/go-streamprocessor"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/buger/jsonparser"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/blendle/go-logger"
