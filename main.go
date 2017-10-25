@@ -119,7 +119,7 @@ func produceMessages(p stream.Producer, events []*Event, db *sql.DB) {
 		p.Messages() <- &stream.Message{
 			Value:     msg,
 			Key:       []byte(event.ExternalID),
-			Timestamp: time.Now().UTC(),
+			Timestamp: event.CreatedAt,
 		}
 
 		_, err = db.Exec("update outbound_event_queue set processed = true where id = $1", event.ID)
