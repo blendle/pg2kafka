@@ -20,6 +20,7 @@ const selectUnprocessedEventsQuery = `
 	FROM outbound_event_queue
 	WHERE processed = false
 	ORDER BY created_at ASC
+	LIMIT 1000
 `
 
 // Event represents the queued event in the database
