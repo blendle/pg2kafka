@@ -39,7 +39,7 @@ func main() {
 
 	logger.Init(conf)
 
-	conninfo := os.Getenv("DB_URL")
+	conninfo := os.Getenv("DATABASE_URL")
 
 	db, err := sql.Open("postgres", conninfo)
 	if err != nil {

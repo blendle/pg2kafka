@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"os"
 	"testing"
 
 	streaminmem "github.com/blendle/go-streamprocessor/streamclient/inmem"
@@ -70,7 +71,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 func setup(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
-	db, err := sql.Open("postgres", "postgres://jurrestender:@localhost/pg2kafka_test?sslmode=disable")
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
