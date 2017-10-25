@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
@@ -44,11 +43,11 @@ func main() {
 
 	db, err := sql.Open("postgres", conninfo)
 	if err != nil {
-		panic(err)
+		logger.L.Fatal("Error opening db connection", zap.Error(err))
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			panic(err)
+			logger.L.Fatal("Error closing db connection", zap.Error(err))
 		}
 	}()
 
@@ -72,6 +71,7 @@ func main() {
 	if err := listener.Listen("outbound_event_queue"); err != nil {
 		logger.L.Error("Error listening to pg", zap.Error(err))
 	}
+	defer listener.Close()
 
 	// Process any events left in the queue
 	ProcessEvents(producer, db)
@@ -86,25 +86,26 @@ func main() {
 func ProcessEvents(p stream.Producer, db *sql.DB) {
 	events, err := fetchUnprocessedRecords(db)
 	if err != nil {
-		panic(fmt.Sprintf("process events: %v", err))
+		logger.L.Error("Error listening to pg", zap.Error(err))
 	}
 
 	produceMessages(p, events, db)
 }
 
 func waitForNotification(l *pq.Listener, p stream.Producer, db *sql.DB) {
-	for {
-		select {
-		case <-l.Notify:
-			// We actually receive the payload from the notify here, but in order to
-			// ensure that we never process events out-of-turn, we query the DB for
-			// all unprocessed events.
-			ProcessEvents(p, db)
-			return
-		case <-time.After(90 * time.Second):
-			go l.Ping()
-			return
-		}
+	select {
+	case <-l.Notify:
+		// We actually receive the payload from the notify here, but in order to
+		// ensure that we never process events out-of-turn, we query the DB for
+		// all unprocessed events.
+		ProcessEvents(p, db)
+	case <-time.After(90 * time.Second):
+		go func() {
+			err := l.Ping()
+			if err != nil {
+				logger.L.Fatalf("Error pinging listener", zap.Error(err))
+			}
+		}()
 	}
 }
 
@@ -112,7 +113,7 @@ func produceMessages(p stream.Producer, events []*Event, db *sql.DB) {
 	for _, event := range events {
 		msg, err := json.Marshal(event)
 		if err != nil {
-			panic(fmt.Sprintf("parsing message: %v", err))
+			logger.L.Fatal("Error parsing event", zap.Error(err))
 		}
 
 		p.Messages() <- &stream.Message{
@@ -123,7 +124,7 @@ func produceMessages(p stream.Producer, events []*Event, db *sql.DB) {
 
 		_, err = db.Exec("update outbound_event_queue set processed = true where id = $1", event.ID)
 		if err != nil {
-			panic(fmt.Sprintf("updating: %v", err))
+			logger.L.Fatal("Error marking record as processed", zap.Error(err))
 		}
 	}
 }
@@ -136,7 +137,7 @@ func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
 		ORDER BY created_at ASC
 	`)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -153,7 +154,7 @@ func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
 			&msg.CreatedAt,
 		)
 		if err != nil {
-			fmt.Println(err)
+			return nil, err
 		}
 		messages = append(messages, &msg)
 	}

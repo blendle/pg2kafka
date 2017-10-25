@@ -35,7 +35,9 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "jurre@blendle.com" }`)},
 		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "jurres@blendle.com" }`)},
 	}
-	insert(db, events)
+	if err := insert(db, events); err != nil {
+		t.Fatalf("Error inserting events: %v", err)
+	}
 
 	opts := func(c *streaminmem.Client) {
 		c.ProducerTopic = "users"
@@ -86,7 +88,7 @@ func setup(t *testing.T) (*sql.DB, func()) {
 	}
 }
 
-func insert(db *sql.DB, events []*Event) {
+func insert(db *sql.DB, events []*Event) error {
 	tx, err := db.Begin()
 	statement, err := tx.Prepare(`
 		INSERT INTO outbound_event_queue (external_id, table_name, statement, data, processed)
@@ -94,17 +96,19 @@ func insert(db *sql.DB, events []*Event) {
 	`)
 	if err != nil {
 		tx.Rollback()
-		panic(err)
+		return err
 	}
 
 	for _, e := range events {
 		if _, err := statement.Exec(e.ExternalID, e.TableName, e.Statement, e.Data, e.Processed); err != nil {
 			tx.Rollback()
-			panic(err)
+			return err
 		}
 	}
 	if err = tx.Commit(); err != nil {
-		panic(err)
+		return err
 	}
 	tx.Commit()
+
+	return nil
 }
