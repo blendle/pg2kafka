@@ -103,7 +103,7 @@ func waitForNotification(l *pq.Listener, p stream.Producer, db *sql.DB) {
 		go func() {
 			err := l.Ping()
 			if err != nil {
-				logger.L.Fatalf("Error pinging listener", zap.Error(err))
+				logger.L.Fatal("Error pinging listener", zap.Error(err))
 			}
 		}()
 	}
