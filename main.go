@@ -6,16 +6,21 @@ import (
 	"os"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/blendle/go-logger"
 	"github.com/blendle/go-streamprocessor/stream"
 	"github.com/blendle/go-streamprocessor/streamclient"
 	"github.com/blendle/go-streamprocessor/streamclient/kafka"
 	"github.com/blendle/go-streamprocessor/streamclient/standardstream"
-
 	"github.com/lib/pq"
+	"go.uber.org/zap"
 )
+
+const selectUnprocessedEventsQuery = `
+	SELECT id, uuid, external_id, table_name, statement, data, created_at
+	FROM outbound_event_queue
+	WHERE processed = false
+	ORDER BY created_at ASC
+`
 
 // Event represents the queued event in the database
 type Event struct {
@@ -130,12 +135,7 @@ func produceMessages(p stream.Producer, events []*Event, db *sql.DB) {
 }
 
 func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
-	rows, err := db.Query(`
-		SELECT id, uuid, external_id, table_name, statement, data, created_at
-		FROM outbound_event_queue
-		WHERE processed = false
-		ORDER BY created_at ASC
-	`)
+	rows, err := db.Query(selectUnprocessedEventsQuery)
 	if err != nil {
 		return nil, err
 	}
