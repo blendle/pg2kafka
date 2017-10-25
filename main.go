@@ -143,7 +143,7 @@ func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
 
 	messages := []*Event{}
 	for rows.Next() {
-		var msg Event
+		msg := &Event{}
 		err = rows.Scan(
 			&msg.ID,
 			&msg.UUID,
@@ -156,7 +156,7 @@ func fetchUnprocessedRecords(db *sql.DB) ([]*Event, error) {
 		if err != nil {
 			return nil, err
 		}
-		messages = append(messages, &msg)
+		messages = append(messages, msg)
 	}
 
 	return messages, nil
