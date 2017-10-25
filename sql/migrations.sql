@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS outbound_event_queue (
   processed     boolean DEFAULT false
 );
 
-CREATE INDEX outbound_event_queue_created_at_not_processed_index
-ON outbound_event_queue (created_at)
+CREATE INDEX outbound_event_queue_id_not_processed_index
+ON outbound_event_queue (id)
 WHERE processed IS FALSE;
 
 -- We aqcuire an exlusive lock on the table to ensure that we do not miss any

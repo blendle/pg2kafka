@@ -19,8 +19,14 @@ const selectUnprocessedEventsQuery = `
 	SELECT id, uuid, external_id, table_name, statement, data, created_at
 	FROM outbound_event_queue
 	WHERE processed = false
-	ORDER BY created_at ASC
+	ORDER BY id ASC
 	LIMIT 1000
+`
+
+const markEventAsProcessedQuery = `
+	UPDATE outbound_event_queue
+	SET processed = true
+	WHERE id = $1 AND processed = false
 `
 
 // Event represents the queued event in the database
@@ -44,6 +50,9 @@ func main() {
 	}
 
 	logger.Init(conf)
+
+	signals := make(chan, 0)
+	os.Listen
 
 	conninfo := os.Getenv("DATABASE_URL")
 
@@ -80,7 +89,7 @@ func main() {
 	defer listener.Close()
 
 	// Process any events left in the queue
-	ProcessEvents(producer, db)
+	processQueue(producer, db)
 
 	for {
 		waitForNotification(listener, producer, db)
@@ -96,6 +105,21 @@ func ProcessEvents(p stream.Producer, db *sql.DB) {
 	}
 
 	produceMessages(p, events, db)
+}
+
+func processQueue(p stream.Producer, db *sql.DB) {
+	count := 0
+	err := db.QueryRow("SELECT count(*) AS count FROM outbound_event_queue").Scan(&count)
+	if err != nil {
+		logger.L.Fatal("Error selecting count", zap.Error(err))
+	}
+
+	limit := 1000
+	pageCount := (count % limit)
+
+	for i := 0; i <= pageCount; i++ {
+		ProcessEvents(p, db)
+	}
 }
 
 func waitForNotification(l *pq.Listener, p stream.Producer, db *sql.DB) {
@@ -128,7 +152,7 @@ func produceMessages(p stream.Producer, events []*Event, db *sql.DB) {
 			Timestamp: event.CreatedAt,
 		}
 
-		_, err = db.Exec("update outbound_event_queue set processed = true where id = $1", event.ID)
+		_, err = db.Exec(markEventAsProcessedQuery, event.ID)
 		if err != nil {
 			logger.L.Fatal("Error marking record as processed", zap.Error(err))
 		}
