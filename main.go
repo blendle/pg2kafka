@@ -51,9 +51,6 @@ func main() {
 
 	logger.Init(conf)
 
-	signals := make(chan, 0)
-	os.Listen
-
 	conninfo := os.Getenv("DATABASE_URL")
 
 	db, err := sql.Open("postgres", conninfo)

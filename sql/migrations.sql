@@ -15,17 +15,3 @@ CREATE TABLE IF NOT EXISTS outbound_event_queue (
 CREATE INDEX outbound_event_queue_id_not_processed_index
 ON outbound_event_queue (id)
 WHERE processed IS FALSE;
-
--- We aqcuire an exlusive lock on the table to ensure that we do not miss any
--- events between snapshotting and once the trigger is added.
--- TODO: Should we wrap this in a function, so you cannot (easily) add the
--- trigger without also snapshotting?
-BEGIN;
-  LOCK TABLE users IN ACCESS EXCLUSIVE MODE;
-
-  SELECT create_snapshot_events('users');
-
-  CREATE TRIGGER IF NOT EXISTS users_enqueue_events
-  AFTER INSERT OR DELETE OR UPDATE ON users
-  FOR EACH ROW EXECUTE PROCEDURE enqueue_events();
-COMMIT;

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -10,21 +11,6 @@ import (
 
 	_ "github.com/lib/pq"
 )
-
-const migration = `
-	CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-	CREATE SEQUENCE IF NOT EXISTS outbound_event_queue_id;
-	CREATE TABLE IF NOT EXISTS outbound_event_queue (
-		id            integer NOT NULL DEFAULT nextval('outbound_event_queue_id'::regclass),
-		uuid          uuid NOT NULL DEFAULT uuid_generate_v4(),
-		external_id   varchar(100) NOT NULL,
-		table_name    varchar(100) NOT NULL,
-		statement     varchar(20) NOT NULL,
-		data          jsonb NOT NULL,
-		created_at    timestamp NOT NULL DEFAULT current_timestamp,
-		processed     boolean DEFAULT false
-	);
-`
 
 func TestFetchUnprocessedRecords(t *testing.T) {
 	db, cleanup := setup(t)
@@ -75,7 +61,13 @@ func setup(t *testing.T) (*sql.DB, func()) {
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
-	_, err = db.Exec(migration)
+
+	migration, err := ioutil.ReadFile("./sql/migrations.sql")
+	if err != nil {
+		t.Fatalf("Error reading migration: %v", err)
+	}
+
+	_, err = db.Exec(string(migration))
 	if err != nil {
 		t.Fatalf("failed to create table: %v", err)
 	}
