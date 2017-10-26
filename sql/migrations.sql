@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS outbound_event_queue (
   processed     boolean DEFAULT false
 );
 
+DROP INDEX IF EXISTS outbound_event_queue_id_not_processed_index;
 CREATE INDEX outbound_event_queue_id_not_processed_index
 ON outbound_event_queue (id)
 WHERE processed IS FALSE;

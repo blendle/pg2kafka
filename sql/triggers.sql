@@ -47,15 +47,15 @@ LANGUAGE plpgsql
 AS $_$
 DECLARE
   query text;
-  col record;
+  rec record;
   changes jsonb;
   external_id varchar;
 BEGIN
-  query := ('SELECT * FROM ' || table_name || ';');
+  query := 'SELECT * FROM ' || table_name;
 
-  FOR col IN EXECUTE query LOOP
-    external_id := col.uuid; -- TODO: uuid / uid / id
-    changes := json_strip_nulls(row_to_json(col));
+  FOR rec IN EXECUTE query LOOP
+    external_id := rec.uuid; -- TODO: uuid / uid / id
+    changes := json_strip_nulls(row_to_json(rec));
 
     INSERT INTO outbound_event_queue(external_id, table_name, statement, data)
     VALUES (external_id, table_name, 'SNAPSHOT', changes);
@@ -63,16 +63,26 @@ BEGIN
 END
 $_$;
 
--- We aqcuire an exlusive lock on the table to ensure that we do not miss any
--- events between snapshotting and once the trigger is added.
--- TODO: Should we wrap this in a function, so you cannot (easily) add the
--- trigger without also snapshotting?
-BEGIN;
-  LOCK TABLE users IN ACCESS EXCLUSIVE MODE;
+CREATE OR REPLACE FUNCTION setup_pg2kafka(table_name regclass) RETURNS void
+LANGUAGE plpgsql
+AS $_$
+DECLARE
+  trigger_name varchar;
+  lock_query varchar;
+  trigger_query varchar;
+BEGIN
+  trigger_name := table_name || '_enqueue_event';
+  lock_query := 'LOCK TABLE ' || table_name || ' IN ACCESS EXCLUSIVE MODE';
+  trigger_query := 'CREATE TRIGGER ' || trigger_name
+    || ' AFTER INSERT OR DElETE OR UPDATE ON ' || table_name
+    || ' FOR EACH ROW EXECUTE PROCEDURE enqueue_event()';
 
-  SELECT create_snapshot_events('users');
+  -- We aqcuire an exlusive lock on the table to ensure that we do not miss any
+  -- events between snapshotting and once the trigger is added.
+  EXECUTE lock_query;
 
-  CREATE TRIGGER IF NOT EXISTS users_enqueue_events
-  AFTER INSERT OR DELETE OR UPDATE ON users
-  FOR EACH ROW EXECUTE PROCEDURE enqueue_events();
-COMMIT;
+  PERFORM create_snapshot_events(table_name);
+
+  EXECUTE trigger_query;
+END
+$_$;
