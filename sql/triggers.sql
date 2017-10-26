@@ -11,12 +11,12 @@ DECLARE
 BEGIN
   IF TG_OP = 'INSERT' THEN
     external_id := NEW.uuid; -- TODO: uuid or uid or id?
-    changes := json_strip_nulls(row_to_json(NEW));
+    changes := row_to_json(NEW);
   ELSIF TG_OP = 'UPDATE' THEN
     external_id := OLD.uuid;
-    changes := json_strip_nulls(row_to_json(NEW));
+    changes := row_to_json(NEW);
     -- Remove object that didn't change
-    FOR col IN SELECT * FROM jsonb_each(jsonb_strip_nulls(row_to_json(OLD)::jsonb)) LOOP
+    FOR col IN SELECT * FROM jsonb_each(row_to_json(OLD)::jsonb) LOOP
       IF changes @> jsonb_build_object(col.key, col.value) THEN
         changes = changes - col.key;
       END IF;

@@ -34,7 +34,7 @@ func TestSQL_SetupPG2Kafka(t *testing.T) {
 	}
 }
 
-func TestSQL_TriggerIsFired(t *testing.T) {
+func TestSQL_Trigger_Insert(t *testing.T) {
 	db, cleanup := setupTriggers(t)
 	defer cleanup()
 
@@ -69,6 +69,59 @@ func TestSQL_TriggerIsFired(t *testing.T) {
 	name, _ := jsonparser.GetString(events[0].Data, "name")
 	if name != "jurre" {
 		t.Errorf("Expected 'jurre', got %s", name)
+	}
+}
+
+func TestSQL_Trigger_CreateWithNull(t *testing.T) {
+	db, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('niels', null)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eq := eventqueue.NewWithDB(db)
+
+	events, err := eq.FetchUnprocessedRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, valueType, _, _ := jsonparser.Get(events[0].Data, "email")
+	if valueType != jsonparser.Null {
+		t.Errorf("Expected null, got %v", valueType)
+	}
+}
+
+func TestSQL_Trigger_UpdateToNull(t *testing.T) {
+	db, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('jurre', 'jurre@blendle.com')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec(`UPDATE users SET email = null WHERE name = 'jurre'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eq := eventqueue.NewWithDB(db)
+
+	events, err := eq.FetchUnprocessedRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 events, got %d", len(events))
+	}
+
+	_, valueType, _, _ := jsonparser.Get(events[1].Data, "email")
+	if valueType != jsonparser.Null {
+		t.Errorf("Expected null, got %v", valueType)
 	}
 }
 
