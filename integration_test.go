@@ -87,7 +87,7 @@ func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 func insert(db *sql.DB, events []*eventqueue.Event) error {
 	tx, err := db.Begin()
 	statement, err := tx.Prepare(`
-		INSERT INTO outbound_event_queue (external_id, table_name, statement, data, processed)
+		INSERT INTO pg2kafka.outbound_event_queue (external_id, table_name, statement, data, processed)
 		VALUES ($1, $2, $3, $4, $5)
 	`)
 	if err != nil {

@@ -153,20 +153,20 @@ func setupTriggers(t *testing.T) (*sql.DB, func()) {
 	}
 
 	_, err = db.Exec(`
-	DROP TABLE IF EXISTS users;
+	DROP TABLE IF EXISTS users cascade;
 	CREATE TABLE users (
 		uuid  uuid NOT NULL DEFAULT uuid_generate_v4(),
 		name  varchar,
 		email text
 	);
-	SELECT setup_pg2kafka('users');
+	SELECT pg2kafka.setup('users');
 	`)
 	if err != nil {
 		t.Fatalf("Error creating users table: %v", err)
 	}
 
 	return db, func() {
-		_, err := db.Exec("DELETE FROM outbound_event_queue")
+		_, err := db.Exec("DELETE FROM pg2kafka.outbound_event_queue")
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
 		}

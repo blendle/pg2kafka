@@ -1,5 +1,6 @@
 CREATE OR REPLACE PROCEDURAL LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION enqueue_event() RETURNS trigger
+
+CREATE OR REPLACE FUNCTION pg2kafka.enqueue_event() RETURNS trigger
 LANGUAGE plpgsql
 AS $_$
 DECLARE
@@ -31,7 +32,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  INSERT INTO outbound_event_queue(external_id, table_name, statement, data)
+  INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data)
   VALUES (external_id, TG_TABLE_NAME, TG_OP, changes)
   RETURNING * INTO outbound_event;
 
@@ -42,7 +43,7 @@ BEGIN
 END
 $_$;
 
-CREATE OR REPLACE FUNCTION create_snapshot_events(table_name regclass) RETURNS void
+CREATE OR REPLACE FUNCTION pg2kafka.create_snapshot_events(table_name regclass) RETURNS void
 LANGUAGE plpgsql
 AS $_$
 DECLARE
@@ -57,13 +58,13 @@ BEGIN
     external_id := rec.uuid; -- TODO: uuid / uid / id
     changes := json_strip_nulls(row_to_json(rec));
 
-    INSERT INTO outbound_event_queue(external_id, table_name, statement, data)
+    INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data)
     VALUES (external_id, table_name, 'SNAPSHOT', changes);
   END LOOP;
 END
 $_$;
 
-CREATE OR REPLACE FUNCTION setup_pg2kafka(table_name regclass) RETURNS void
+CREATE OR REPLACE FUNCTION pg2kafka.setup(table_name regclass) RETURNS void
 LANGUAGE plpgsql
 AS $_$
 DECLARE
@@ -75,13 +76,13 @@ BEGIN
   lock_query := 'LOCK TABLE ' || table_name || ' IN ACCESS EXCLUSIVE MODE';
   trigger_query := 'CREATE TRIGGER ' || trigger_name
     || ' AFTER INSERT OR DElETE OR UPDATE ON ' || table_name
-    || ' FOR EACH ROW EXECUTE PROCEDURE enqueue_event()';
+    || ' FOR EACH ROW EXECUTE PROCEDURE pg2kafka.enqueue_event()';
 
   -- We aqcuire an exlusive lock on the table to ensure that we do not miss any
   -- events between snapshotting and once the trigger is added.
   EXECUTE lock_query;
 
-  PERFORM create_snapshot_events(table_name);
+  PERFORM pg2kafka.create_snapshot_events(table_name);
 
   EXECUTE trigger_query;
 END

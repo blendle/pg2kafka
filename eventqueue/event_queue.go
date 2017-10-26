@@ -9,21 +9,21 @@ import (
 const (
 	selectUnprocessedEventsQuery = `
 		SELECT id, uuid, external_id, table_name, statement, data, created_at
-		FROM outbound_event_queue
+		FROM pg2kafka.outbound_event_queue
 		WHERE processed = false
 		ORDER BY id ASC
 		LIMIT 1000
 	`
 
 	markEventAsProcessedQuery = `
-		UPDATE outbound_event_queue
+		UPDATE pg2kafka.outbound_event_queue
 		SET processed = true
 		WHERE id = $1 AND processed = false
 	`
 
 	countUnprocessedEventsQuery = `
 		SELECT count(*) AS count
-		FROM outbound_event_queue
+		FROM pg2kafka.outbound_event_queue
 		WHERE processed IS FALSE
 	`
 )

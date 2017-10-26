@@ -1,8 +1,10 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE SEQUENCE IF NOT EXISTS outbound_event_queue_id;
-CREATE TABLE IF NOT EXISTS outbound_event_queue (
-  id            integer NOT NULL DEFAULT nextval('outbound_event_queue_id'::regclass),
+CREATE SCHEMA IF NOT EXISTS pg2kafka;
+
+CREATE SEQUENCE IF NOT EXISTS pg2kafka.outbound_event_queue_id;
+CREATE TABLE IF NOT EXISTS pg2kafka.outbound_event_queue (
+  id            integer NOT NULL DEFAULT nextval('pg2kafka.outbound_event_queue_id'::regclass),
   uuid          uuid NOT NULL DEFAULT uuid_generate_v4(),
   external_id   varchar(100) NOT NULL,
   table_name    varchar(100) NOT NULL,
@@ -13,5 +15,5 @@ CREATE TABLE IF NOT EXISTS outbound_event_queue (
 );
 
 CREATE INDEX IF NOT EXISTS outbound_event_queue_id_not_processed_index
-ON outbound_event_queue (id)
+ON pg2kafka.outbound_event_queue (id)
 WHERE processed IS FALSE;
