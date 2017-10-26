@@ -9,15 +9,16 @@ import (
 	"github.com/blendle/go-streamprocessor/streamclient/inmem"
 	"github.com/buger/jsonparser"
 
+	"github.com/blendle/pg2kafka/eventqueue"
 	_ "github.com/lib/pq"
 )
 
 func TestFetchUnprocessedRecords(t *testing.T) {
-	db, cleanup := setup(t)
+	db, eq, cleanup := setup(t)
 	defer cleanup()
 
 	// TODO: Use actual trigger to generate this?
-	events := []*Event{
+	events := []*eventqueue.Event{
 		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "j@blendle.com" }`), Processed: true},
 		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "jurre@blendle.com" }`)},
 		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "jurres@blendle.com" }`)},
@@ -34,7 +35,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 	c := inmem.NewClientWithStore(s, opts)
 	p := c.NewProducer()
 
-	ProcessEvents(p, db)
+	ProcessEvents(p, eq)
 
 	expected := 2
 	actual := len(pt.Messages())
@@ -55,7 +56,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 // Helpers
 
-func setup(t *testing.T) (*sql.DB, func()) {
+func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	t.Helper()
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -72,7 +73,9 @@ func setup(t *testing.T) (*sql.DB, func()) {
 		t.Fatalf("failed to create table: %v", err)
 	}
 
-	return db, func() {
+	eq := eventqueue.NewWithDB(db)
+
+	return db, eq, func() {
 		_, err := db.Exec("DELETE FROM outbound_event_queue")
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
@@ -81,7 +84,7 @@ func setup(t *testing.T) (*sql.DB, func()) {
 	}
 }
 
-func insert(db *sql.DB, events []*Event) error {
+func insert(db *sql.DB, events []*eventqueue.Event) error {
 	tx, err := db.Begin()
 	statement, err := tx.Prepare(`
 		INSERT INTO outbound_event_queue (external_id, table_name, statement, data, processed)
