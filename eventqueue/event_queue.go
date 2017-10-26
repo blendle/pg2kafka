@@ -21,7 +21,7 @@ const (
 		WHERE id = $1 AND processed = false
 	`
 
-	countUnprocessedEvents = `
+	countUnprocessedEventsQuery = `
 		SELECT count(*) AS count
 		FROM outbound_event_queue
 		WHERE processed IS FALSE
@@ -40,10 +40,13 @@ type Event struct {
 	Processed  bool            `json:"-"`
 }
 
+// Queue represents the queue of snapshot/create/update/delete events stored in
+// the database.
 type Queue struct {
 	db *sql.DB
 }
 
+// New creates a new Queue, connected to the given database URL.
 func New(conninfo string) (*Queue, error) {
 	db, err := sql.Open("postgres", conninfo)
 	if err != nil {
@@ -53,10 +56,13 @@ func New(conninfo string) (*Queue, error) {
 	return &Queue{db: db}, nil
 }
 
+// NewWithDB creates a new Queue with the given database.
 func NewWithDB(db *sql.DB) *Queue {
 	return &Queue{db: db}
 }
 
+// FetchUnprocessedRecords fetches a page (up to 1000) of events that have not
+// been marked as processed yet.
 func (eq *Queue) FetchUnprocessedRecords() ([]*Event, error) {
 	rows, err := eq.db.Query(selectUnprocessedEventsQuery)
 	if err != nil {
@@ -85,9 +91,12 @@ func (eq *Queue) FetchUnprocessedRecords() ([]*Event, error) {
 	return messages, nil
 }
 
+// UnprocessedEventPagesCount returns how many "pages" of events there are
+// queued in the database. Currently page-size is hard-coded to 1000 events per
+// page.
 func (eq *Queue) UnprocessedEventPagesCount() (int, error) {
 	count := 0
-	err := eq.db.QueryRow(countUnprocessedEvents).Scan(&count)
+	err := eq.db.QueryRow(countUnprocessedEventsQuery).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -96,11 +105,13 @@ func (eq *Queue) UnprocessedEventPagesCount() (int, error) {
 	return count % limit, nil
 }
 
+// MarkEventAsProcessed... marks an even as processed.
 func (eq *Queue) MarkEventAsProcessed(eventID int) error {
 	_, err := eq.db.Exec(markEventAsProcessedQuery, eventID)
 	return err
 }
 
+// Close closes the Queue's database connection.
 func (eq *Queue) Close() error {
 	return eq.db.Close()
 }
