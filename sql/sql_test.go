@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/blendle/pg2kafka/eventqueue"
+	"github.com/buger/jsonparser"
 	_ "github.com/lib/pq"
 )
 
@@ -29,6 +31,44 @@ func TestSQL_SetupPG2Kafka(t *testing.T) {
 
 	if triggerName != "users_enqueue_event" {
 		t.Fatalf("Expected trigger 'users_enqueue_event', got: '%v'", triggerName)
+	}
+}
+
+func TestSQL_TriggerIsFired(t *testing.T) {
+	db, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('jurre', 'jurre@blendle.com')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eq := eventqueue.NewWithDB(db)
+
+	events, err := eq.FetchUnprocessedRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("Expected 1 event, got %d", len(events))
+	}
+
+	if events[0].Statement != "INSERT" {
+		t.Errorf("Expected 'INSERT', got %s", events[0].Statement)
+	}
+
+	if events[0].TableName != "users" {
+		t.Errorf("Expected 'users', got %s", events[0].TableName)
+	}
+
+	email, _ := jsonparser.GetString(events[0].Data, "email")
+	if email != "jurre@blendle.com" {
+		t.Errorf("Expected 'jurre@blendle.com', got %s", email)
+	}
+
+	name, _ := jsonparser.GetString(events[0].Data, "name")
+	if name != "jurre" {
+		t.Errorf("Expected 'jurre', got %s", name)
 	}
 }
 
