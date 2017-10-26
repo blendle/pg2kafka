@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/blendle/go-logger"
@@ -63,9 +64,10 @@ func main() {
 	// Process any events left in the queue
 	processQueue(producer, eq)
 
-	for {
-		waitForNotification(listener, producer, eq)
-	}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+
+	waitForNotification(listener, producer, eq, signals)
 }
 
 // ProcessEvents queries the database for unprocessed events and produces them
@@ -90,20 +92,24 @@ func processQueue(p stream.Producer, eq *eventqueue.Queue) {
 	}
 }
 
-func waitForNotification(l *pq.Listener, p stream.Producer, eq *eventqueue.Queue) {
-	select {
-	case <-l.Notify:
-		// We actually receive the payload from the notify here, but in order to
-		// ensure that we never process events out-of-turn, we query the DB for
-		// all unprocessed events.
-		ProcessEvents(p, eq)
-	case <-time.After(90 * time.Second):
-		go func() {
-			err := l.Ping()
-			if err != nil {
-				logger.L.Fatal("Error pinging listener", zap.Error(err))
-			}
-		}()
+func waitForNotification(l *pq.Listener, p stream.Producer, eq *eventqueue.Queue, signals chan os.Signal) {
+	for {
+		select {
+		case <-l.Notify:
+			// We actually receive the payload from the notify here, but in order to
+			// ensure that we never process events out-of-turn, we query the DB for
+			// all unprocessed events.
+			ProcessEvents(p, eq)
+		case <-time.After(90 * time.Second):
+			go func() {
+				err := l.Ping()
+				if err != nil {
+					logger.L.Fatal("Error pinging listener", zap.Error(err))
+				}
+			}()
+		case <-signals:
+			return
+		}
 	}
 }
 
