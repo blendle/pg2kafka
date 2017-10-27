@@ -84,7 +84,7 @@ func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	}
 
 	return db, eq, func() {
-		_, err := db.Exec("DELETE FROM outbound_event_queue")
+		_, err := db.Exec("DELETE FROM pg2kafka.outbound_event_queue")
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
 		}
