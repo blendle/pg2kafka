@@ -3,7 +3,10 @@ package eventqueue
 import (
 	"database/sql"
 	"encoding/json"
+	"io/ioutil"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -114,4 +117,31 @@ func (eq *Queue) MarkEventAsProcessed(eventID int) error {
 // Close closes the Queue's database connection.
 func (eq *Queue) Close() error {
 	return eq.db.Close()
+}
+
+// ConfigureOutboundEventQueueAndTriggers will set up a new schema 'pg2kafka', with
+// an 'outbound_event_queue' table that is used to store events, and all the
+// triggers necessary to snapshot and start tracking changes for a given table.
+func (eq *Queue) ConfigureOutboundEventQueueAndTriggers(path string) error {
+	migration, err := ioutil.ReadFile(path + "/migrations.sql")
+	if err != nil {
+		return errors.Wrap(err, "error reading migration")
+	}
+
+	_, err = eq.db.Exec(string(migration))
+	if err != nil {
+		return errors.Wrap(err, "failed to create table")
+	}
+
+	functions, err := ioutil.ReadFile(path + "/triggers.sql")
+	if err != nil {
+		return errors.Wrap(err, "Error loading functions")
+	}
+
+	_, err = eq.db.Exec(string(functions))
+	if err != nil {
+		return errors.Wrap(err, "Error creating triggers")
+	}
+
+	return nil
 }

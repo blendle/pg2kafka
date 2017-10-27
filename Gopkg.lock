@@ -80,6 +80,12 @@
   version = "v0.1.1"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
@@ -106,6 +112,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bfbf27c5f0020f10f4a92c97532d4a251cbe27abcc0111ddacf6c0ba48aeaccf"
+  inputs-digest = "50d6cfc4cb1e21d5e8daad167227d8bb9394075667f99314f1ab04faf94890f4"
   solver-name = "gps-cdcl"
   solver-version = 1

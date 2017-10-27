@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -63,17 +62,10 @@ func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 		t.Fatalf("failed to open database: %v", err)
 	}
 
-	migration, err := ioutil.ReadFile("./sql/migrations.sql")
-	if err != nil {
-		t.Fatalf("Error reading migration: %v", err)
-	}
-
-	_, err = db.Exec(string(migration))
-	if err != nil {
-		t.Fatalf("failed to create table: %v", err)
-	}
-
 	eq := eventqueue.NewWithDB(db)
+	if err := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); err != nil {
+		t.Fatal(err)
+	}
 
 	return db, eq, func() {
 		_, err := db.Exec("DELETE FROM outbound_event_queue")

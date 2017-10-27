@@ -2,7 +2,6 @@ package sql_test
 
 import (
 	"database/sql"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -19,11 +18,10 @@ AND tgrelid = 'users'::regclass;
 `
 
 func TestSQL_SetupPG2Kafka(t *testing.T) {
-	db, cleanup := setupTriggers(t)
+	db, _, cleanup := setupTriggers(t)
 	defer cleanup()
 
 	triggerName := ""
-
 	err := db.QueryRow(selectTriggerNamesQuery).Scan(&triggerName)
 	if err != nil {
 		t.Fatalf("Error fetching triggers: %v", err)
@@ -35,15 +33,13 @@ func TestSQL_SetupPG2Kafka(t *testing.T) {
 }
 
 func TestSQL_Trigger_Insert(t *testing.T) {
-	db, cleanup := setupTriggers(t)
+	db, eq, cleanup := setupTriggers(t)
 	defer cleanup()
 
 	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('jurre', 'jurre@blendle.com')`)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	eq := eventqueue.NewWithDB(db)
 
 	events, err := eq.FetchUnprocessedRecords()
 	if err != nil {
@@ -73,15 +69,13 @@ func TestSQL_Trigger_Insert(t *testing.T) {
 }
 
 func TestSQL_Trigger_CreateWithNull(t *testing.T) {
-	db, cleanup := setupTriggers(t)
+	db, eq, cleanup := setupTriggers(t)
 	defer cleanup()
 
 	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('niels', null)`)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	eq := eventqueue.NewWithDB(db)
 
 	events, err := eq.FetchUnprocessedRecords()
 	if err != nil {
@@ -95,7 +89,7 @@ func TestSQL_Trigger_CreateWithNull(t *testing.T) {
 }
 
 func TestSQL_Trigger_UpdateToNull(t *testing.T) {
-	db, cleanup := setupTriggers(t)
+	db, eq, cleanup := setupTriggers(t)
 	defer cleanup()
 
 	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('jurre', 'jurre@blendle.com')`)
@@ -107,8 +101,6 @@ func TestSQL_Trigger_UpdateToNull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	eq := eventqueue.NewWithDB(db)
 
 	events, err := eq.FetchUnprocessedRecords()
 	if err != nil {
@@ -125,31 +117,18 @@ func TestSQL_Trigger_UpdateToNull(t *testing.T) {
 	}
 }
 
-func setupTriggers(t *testing.T) (*sql.DB, func()) {
+func setupTriggers(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	t.Helper()
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
 
-	migration, err := ioutil.ReadFile("./migrations.sql")
-	if err != nil {
-		t.Fatalf("Error reading migration: %v", err)
-	}
+	eq := eventqueue.NewWithDB(db)
 
-	_, err = db.Exec(string(migration))
+	err = eq.ConfigureOutboundEventQueueAndTriggers("./")
 	if err != nil {
-		t.Fatalf("failed to create table: %v", err)
-	}
-
-	functions, err := ioutil.ReadFile("./triggers.sql")
-	if err != nil {
-		t.Fatalf("Error loading functions: %v", err)
-	}
-
-	_, err = db.Exec(string(functions))
-	if err != nil {
-		t.Fatalf("Error creating triggers")
+		t.Fatal(err)
 	}
 
 	_, err = db.Exec(`
@@ -165,11 +144,11 @@ func setupTriggers(t *testing.T) (*sql.DB, func()) {
 		t.Fatalf("Error creating users table: %v", err)
 	}
 
-	return db, func() {
+	return db, eq, func() {
 		_, err := db.Exec("DELETE FROM pg2kafka.outbound_event_queue")
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
 		}
-		db.Close()
+		eq.Close()
 	}
 }
