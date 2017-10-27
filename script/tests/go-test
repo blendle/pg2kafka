@@ -8,6 +8,6 @@ cd "$(dirname "$0")/../.."
 
 [ -z "$CI" ] || cd "$GOPATH/src/github.com/blendle/pg2kafka"
 
-export DATABASE_URL="postgres://pg2kafka_test:pg2kafka_test@localhost/pg2kafka_test?sslmode=disable"
+export DATABASE_URL="postgres://postgres@localhost/postgres?sslmode=disable"
 
 go test ./...
