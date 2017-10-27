@@ -71,7 +71,6 @@ func (eq *Queue) FetchUnprocessedRecords() ([]*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	messages := []*Event{}
 	for rows.Next() {
@@ -91,6 +90,9 @@ func (eq *Queue) FetchUnprocessedRecords() ([]*Event, error) {
 		messages = append(messages, msg)
 	}
 
+	if cerr := rows.Close(); cerr != nil {
+		return nil, cerr
+	}
 	return messages, nil
 }
 
@@ -108,7 +110,7 @@ func (eq *Queue) UnprocessedEventPagesCount() (int, error) {
 	return count % limit, nil
 }
 
-// MarkEventAsProcessed... marks an even as processed.
+// MarkEventAsProcessed marks an even as processed.
 func (eq *Queue) MarkEventAsProcessed(eventID int) error {
 	_, err := eq.db.Exec(markEventAsProcessedQuery, eventID)
 	return err

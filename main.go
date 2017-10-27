@@ -6,15 +6,14 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/blendle/go-logger"
+	logger "github.com/blendle/go-logger"
 	"github.com/blendle/go-streamprocessor/stream"
 	"github.com/blendle/go-streamprocessor/streamclient"
 	"github.com/blendle/go-streamprocessor/streamclient/kafka"
 	"github.com/blendle/go-streamprocessor/streamclient/standardstream"
+	"github.com/blendle/pg2kafka/eventqueue"
 	"github.com/lib/pq"
 	"go.uber.org/zap"
-
-	"github.com/blendle/pg2kafka/eventqueue"
 )
 
 func main() {
@@ -34,8 +33,8 @@ func main() {
 		logger.L.Fatal("Error opening db connection", zap.Error(err))
 	}
 	defer func() {
-		if err := eq.Close(); err != nil {
-			logger.L.Fatal("Error closing db connection", zap.Error(err))
+		if cerr := eq.Close(); cerr != nil {
+			logger.L.Fatal("Error closing db connection", zap.Error(cerr))
 		}
 	}()
 
@@ -48,7 +47,11 @@ func main() {
 	if err != nil {
 		logger.L.Fatal("Unable to initialize producer", zap.Error(err))
 	}
-	defer producer.Close()
+	defer func() {
+		if cerr := producer.Close(); cerr != nil {
+			logger.L.Fatal("Error closing producer", zap.Error(err))
+		}
+	}()
 
 	reportProblem := func(ev pq.ListenerEventType, err error) {
 		if err != nil {
@@ -59,7 +62,11 @@ func main() {
 	if err := listener.Listen("outbound_event_queue"); err != nil {
 		logger.L.Error("Error listening to pg", zap.Error(err))
 	}
-	defer listener.Close()
+	defer func() {
+		if cerr := listener.Close(); cerr != nil {
+			logger.L.Error("Error closing listener", zap.Error(cerr))
+		}
+	}()
 
 	// Process any events left in the queue
 	processQueue(producer, eq)
@@ -92,7 +99,12 @@ func processQueue(p stream.Producer, eq *eventqueue.Queue) {
 	}
 }
 
-func waitForNotification(l *pq.Listener, p stream.Producer, eq *eventqueue.Queue, signals chan os.Signal) {
+func waitForNotification(
+	l *pq.Listener,
+	p stream.Producer,
+	eq *eventqueue.Queue,
+	signals chan os.Signal,
+) {
 	for {
 		select {
 		case <-l.Notify:

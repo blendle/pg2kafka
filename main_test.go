@@ -18,9 +18,25 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 	// TODO: Use actual trigger to generate this?
 	events := []*eventqueue.Event{
-		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "j@blendle.com" }`), Processed: true},
-		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "jurre@blendle.com" }`)},
-		{ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", TableName: "users", Statement: "UPDATE", Data: []byte(`{ "email": "jurres@blendle.com" }`)},
+		{
+			ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b",
+			TableName:  "users",
+			Statement:  "UPDATE",
+			Data:       []byte(`{ "email": "j@blendle.com" }`),
+			Processed:  true,
+		},
+		{
+			ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b",
+			TableName:  "users",
+			Statement:  "UPDATE",
+			Data:       []byte(`{ "email": "jurre@blendle.com" }`),
+		},
+		{
+			ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b",
+			TableName:  "users",
+			Statement:  "UPDATE",
+			Data:       []byte(`{ "email": "jurres@blendle.com" }`),
+		},
 	}
 	if err := insert(db, events); err != nil {
 		t.Fatalf("Error inserting events: %v", err)
@@ -72,31 +88,40 @@ func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
 		}
-		db.Close()
+		if err := db.Close(); err != nil {
+			t.Fatalf("Error closing db: %v", err)
+		}
 	}
 }
 
 func insert(db *sql.DB, events []*eventqueue.Event) error {
 	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
 	statement, err := tx.Prepare(`
 		INSERT INTO pg2kafka.outbound_event_queue (external_id, table_name, statement, data, processed)
 		VALUES ($1, $2, $3, $4, $5)
 	`)
 	if err != nil {
-		tx.Rollback()
+		if txerr := tx.Rollback(); txerr != nil {
+			return txerr
+		}
 		return err
 	}
 
 	for _, e := range events {
-		if _, err := statement.Exec(e.ExternalID, e.TableName, e.Statement, e.Data, e.Processed); err != nil {
-			tx.Rollback()
-			return err
+		_, serr := statement.Exec(e.ExternalID, e.TableName, e.Statement, e.Data, e.Processed)
+		if serr != nil {
+			if txerr := tx.Rollback(); err != nil {
+				return txerr
+			}
+			return serr
 		}
 	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	tx.Commit()
 
 	return nil
 }

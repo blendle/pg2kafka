@@ -1,8 +1,51 @@
 #!/bin/sh
 
-# Add 'pg2kafka_test' as Postgres user and DB
-# (prevents: 'Exception OperationalError: FATAL:  role "xxx" does not exist')
-DB_USER="pg2kafka_test"
-DB_NAME="pg2kafka_test"
-psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 || createuser --superuser $DB_USER
-psql postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 || psql -U postgres -c "CREATE DATABASE $DB_NAME"
+# script/bootstrap: Install project dependencies.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+command -v dep >/dev/null 2>&1 || {
+  if [ -z "$CI" ]; then
+    echo 'You need to install dep as a dependency, run this command on macOS:'
+    echo '$ brew install dep && brew upgrade dep'
+    exit 1
+  else
+    os=$(uname -s | awk '{print tolower($0)}')
+    curl -L "https://github.com/golang/dep/releases/download/v0.3.1/dep-$os-amd64" > /usr/local/bin/dep
+    chmod +x /usr/local/bin/dep
+  fi
+}
+
+command -v gometalinter >/dev/null 2>&1 || {
+  if [ -z "$CI" ]; then
+    echo 'You need to install gometalinter as a dependency, run this command:'
+    echo '$ go get -u github.com/alecthomas/gometalinter'
+    exit 1
+  else
+    go get -u github.com/alecthomas/gometalinter
+  fi
+}
+gometalinter --install --update
+
+command -v godog >/dev/null 2>&1 || {
+  if [ -z "$CI" ]; then
+    echo 'You need to install godog as a dependency, run this command:'
+    echo '$ go get -u github.com/DATA-DOG/godog/cmd/godog'
+    exit 1
+  else
+    go get -u github.com/DATA-DOG/godog/cmd/godog
+  fi
+}
+
+if [ -z "$CI" ]; then
+  echo 'You need to set up a database to test against and export it as "DATABASE_URL"'
+else
+  # Add 'pg2kafka_test' as Postgres user and DB
+  # (prevents: 'Exception OperationalError: FATAL:  role "xxx" does not exist')
+  DB_USER="pg2kafka_test"
+  DB_NAME="pg2kafka_test"
+  psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 || createuser --superuser $DB_USER
+  psql postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 || psql -U postgres -c "CREATE DATABASE $DB_NAME"
+fi
