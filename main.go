@@ -38,6 +38,12 @@ func main() {
 		}
 	}()
 
+	if os.Getenv("PERFORM_MIGRATIONS") == "true" {
+		if err := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); err != nil {
+			logger.L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(err))
+		}
+	}
+
 	options := func(sc *standardstream.Client, kc *kafka.Client) {
 		sc.Logger = logger.L
 		kc.Logger = logger.L
