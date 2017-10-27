@@ -39,8 +39,8 @@ func main() {
 	}()
 
 	if os.Getenv("PERFORM_MIGRATIONS") == "true" {
-		if err := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); err != nil {
-			logger.L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(err))
+		if cerr := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); cerr != nil {
+			logger.L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(cerr))
 		}
 	}
 

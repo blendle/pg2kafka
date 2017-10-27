@@ -119,9 +119,5 @@ func insert(db *sql.DB, events []*eventqueue.Event) error {
 			return serr
 		}
 	}
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Commit()
 }
