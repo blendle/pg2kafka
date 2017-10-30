@@ -138,14 +138,19 @@ func setupTriggers(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 		name  varchar,
 		email text
 	);
-	SELECT pg2kafka.setup('users');
+	SELECT pg2kafka.setup('users', 'uuid');
 	`)
 	if err != nil {
 		t.Fatalf("Error creating users table: %v", err)
 	}
 
 	return db, eq, func() {
-		_, err := db.Exec("DELETE FROM pg2kafka.outbound_event_queue")
+		_, err := db.Exec("DELETE FROM pg2kafka.external_id_relations")
+		if err != nil {
+			t.Fatalf("failed to clear table: %v", err)
+		}
+
+		_, err = db.Exec("DELETE FROM pg2kafka.outbound_event_queue")
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
 		}
