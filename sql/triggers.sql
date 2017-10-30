@@ -1,5 +1,3 @@
-CREATE OR REPLACE PROCEDURAL LANGUAGE plpgsql;
-
 CREATE OR REPLACE FUNCTION pg2kafka.enqueue_event() RETURNS trigger
 LANGUAGE plpgsql
 AS $_$
