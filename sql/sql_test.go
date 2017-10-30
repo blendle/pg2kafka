@@ -145,20 +145,11 @@ func setupTriggers(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	}
 
 	return db, eq, func() {
-		_, err := db.Exec("DELETE FROM pg2kafka.external_id_relations")
+		_, err := db.Exec("DROP SCHEMA pg2kafka CASCADE")
 		if err != nil {
-			t.Fatalf("failed to clear table: %v", err)
+			t.Fatalf("failed to drop pg2kafka schema: %v", err)
 		}
 
-		_, err = db.Exec("DELETE FROM pg2kafka.outbound_event_queue")
-		if err != nil {
-			t.Fatalf("failed to clear table: %v", err)
-		}
-
-		_, err = db.Exec("DELETE FROM users")
-		if err != nil {
-			t.Fatalf("failed to clear table: %v", err)
-		}
 		if cerr := eq.Close(); cerr != nil {
 			t.Fatalf("failed to close eventqueue %v", err)
 		}
