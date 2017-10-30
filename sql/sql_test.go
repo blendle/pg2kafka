@@ -117,6 +117,37 @@ func TestSQL_Trigger_UpdateToNull(t *testing.T) {
 	}
 }
 
+func TestSQL_Snapshot(t *testing.T) {
+	db, eq, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`
+	DROP TABLE IF EXISTS products;
+	CREATE TABLE products (
+		uid  varchar,
+		name varchar
+	);
+	INSERT INTO products (uid, name) VALUES ('duff-1', 'Duffs Beer');
+	SELECT pg2kafka.setup('products', 'uid')
+	`)
+	if err != nil {
+		t.Fatalf("Error creating products table: %v", err)
+	}
+
+	events, err := eq.FetchUnprocessedRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(events) != 1 {
+		t.Fatalf("Expected 1 event, got %d", len(events))
+	}
+
+	if events[0].ExternalID != "duff-1" {
+		t.Fatalf("Incorrect external id, expected 'duff-1', got '%v'", events[0].ExternalID)
+	}
+}
+
 func setupTriggers(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	t.Helper()
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))

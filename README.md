@@ -30,7 +30,7 @@ UPDATE users SET name = 'bartos' WHERE name = 'bart';
 ```json
 {
   "uuid": "b3a5460a-60ad-4f88-b628-1cb57a11de53",
-  "external_id": "uuid",
+  "external_id": "e5a30fc0-83b1-4203-ac4a-a07f873e1acf",
   "statement": "SNAPSHOT",
   "data": {
     "name": "bart",
