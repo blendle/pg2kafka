@@ -116,7 +116,7 @@ func waitForNotification(
 			// We actually receive the payload from the notify here, but in order to
 			// ensure that we never process events out-of-turn, we query the DB for
 			// all unprocessed events.
-			ProcessEvents(p, eq)
+			processQueue(p, eq)
 		case <-time.After(90 * time.Second):
 			go func() {
 				err := l.Ping()
