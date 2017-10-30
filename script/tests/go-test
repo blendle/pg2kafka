@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# script/tests/go-race: Run go tests
+
+set -e
+
+cd "$(dirname "$0")/../.."
+
+[ -z "$CI" ] || cd "$GOPATH/src/github.com/blendle/pg2kafka"
+
+export DATABASE_URL="postgres://postgres@localhost/postgres?sslmode=disable"
+
+go test ./...

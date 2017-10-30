@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# script/setup: Prepare project for development and local testing.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+script/bootstrap
+dep ensure -vendor-only

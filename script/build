@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+GIT_COMMIT=$(git rev-parse --short @)
+export CGO_ENABLED=0
+
+go build -ldflags "-X main.version=$GIT_COMMIT -s -extldflags -static" -a -installsuffix cgo .

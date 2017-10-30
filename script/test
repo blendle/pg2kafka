@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# script/test: Run the test suite and linters.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+script/tests/gometalinter
+script/tests/go-test

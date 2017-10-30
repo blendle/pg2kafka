@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# script/tests/gometalinter: Run linters and static analysis
+
+set -e
+
+cd "$(dirname "$0")/../.."
+
+[ -z "$CI" ] || cd "$GOPATH/src/github.com/blendle/pg2kafka"
+
+export DATABASE_URL="postgres://postgres@localhost/postgres?sslmode=disable"
+
+matches=$(grep \
+  --ignore-case \
+  --recursive \
+  --exclude-dir vendor \
+  '^// [a-z]* \.\.\.$' . || true)
+
+if [ -n "$matches" ]; then
+  >&2 echo "Invalid code comments detected:"
+  >&2 echo
+  >&2 echo "$matches"
+  >&2 echo
+  exit 1
+fi
+
+gometalinter \
+  --vendor \
+  --tests \
+  --aggregate \
+  --line-length=100 \
+  --deadline=300s \
+  --exclude='.*_test\.go:.*is unused \(U1000\)' \
+  --enable-all \
+  --disable=safesql \
+  ./...

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# script/cisetup: Prepare CI environment for testing purposes.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+mkdir -p "$GOPATH/bin" "$GOPATH/src"
+readonly srcDir="$GOPATH/src/github.com/blendle/pg2kafka"
+mkdir -p "$srcDir"
+cp -rp . "$srcDir"
+cd "$srcDir"
+
+script/setup

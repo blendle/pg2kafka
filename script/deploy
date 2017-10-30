@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+GIT_COMMIT=$(git rev-parse --short @)
+
+docker build -t "eu.gcr.io/bnl-blendle/pg2kafka:$GIT_COMMIT" .
+gcloud docker -- push "eu.gcr.io/bnl-blendle/pg2kafka:$GIT_COMMIT"
