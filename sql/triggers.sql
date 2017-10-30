@@ -68,7 +68,7 @@ BEGIN
   FOR rec IN EXECUTE query LOOP
     changes := json_strip_nulls(row_to_json(rec));
 
-    INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name_ref, statement, data)
+    INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data)
     VALUES (external_id, table_name_ref, 'SNAPSHOT', changes);
   END LOOP;
 END
