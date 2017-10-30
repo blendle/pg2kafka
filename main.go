@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	logger "github.com/blendle/go-logger"
@@ -16,6 +19,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var databaseName string
+
 func main() {
 	conf := &logger.Config{
 		App:         "pg2kafka",
@@ -27,6 +32,11 @@ func main() {
 	logger.Init(conf)
 
 	conninfo := os.Getenv("DATABASE_URL")
+	dbURL, err := url.Parse(conninfo)
+	if err != nil {
+		logger.L.Fatal("Error parsing db connection string", zap.Error(err))
+	}
+	databaseName = strings.TrimPrefix(dbURL.Path, "/")
 
 	eq, err := eventqueue.New(conninfo)
 	if err != nil {
@@ -140,6 +150,7 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 
 		p.Messages() <- &stream.Message{
 			Value:     msg,
+			Topic:     topicName(event.TableName),
 			Key:       []byte(event.ExternalID),
 			Timestamp: event.CreatedAt,
 		}
@@ -149,4 +160,8 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 			logger.L.Fatal("Error marking record as processed", zap.Error(err))
 		}
 	}
+}
+
+func topicName(tableName string) string {
+	return fmt.Sprintf("pg2kafka.%v.%v", databaseName, tableName)
 }

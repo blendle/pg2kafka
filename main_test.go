@@ -73,6 +73,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	t.Helper()
+	databaseName = "users"
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
