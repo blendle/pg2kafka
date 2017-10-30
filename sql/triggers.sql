@@ -57,9 +57,10 @@ DECLARE
   query text;
   rec record;
   changes jsonb;
+  external_id_ref varchar;
   external_id varchar;
 BEGIN
-  SELECT pg2kafka.external_id_relations.external_id INTO external_id
+  SELECT pg2kafka.external_id_relations.external_id INTO external_id_ref
   FROM pg2kafka.external_id_relations
   WHERE pg2kafka.external_id_relations.table_name = table_name_ref::varchar;
 
@@ -67,6 +68,7 @@ BEGIN
 
   FOR rec IN EXECUTE query LOOP
     changes := json_strip_nulls(row_to_json(rec));
+    external_id := changes->>external_id_ref;
 
     INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data)
     VALUES (external_id, table_name_ref, 'SNAPSHOT', changes);
