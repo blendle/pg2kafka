@@ -154,6 +154,11 @@ func setupTriggers(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 		if err != nil {
 			t.Fatalf("failed to clear table: %v", err)
 		}
+
+		_, err = db.Exec("DELETE FROM users")
+		if err != nil {
+			t.Fatalf("failed to clear table: %v", err)
+		}
 		if cerr := eq.Close(); cerr != nil {
 			t.Fatalf("failed to close eventqueue %v", err)
 		}

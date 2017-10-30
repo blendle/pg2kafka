@@ -32,11 +32,7 @@ func main() {
 	logger.Init(conf)
 
 	conninfo := os.Getenv("DATABASE_URL")
-	dbURL, err := url.Parse(conninfo)
-	if err != nil {
-		logger.L.Fatal("Error parsing db connection string", zap.Error(err))
-	}
-	databaseName = strings.TrimPrefix(dbURL.Path, "/")
+	databaseName = parseDatabaseName(conninfo)
 
 	eq, err := eventqueue.New(conninfo)
 	if err != nil {
@@ -54,15 +50,8 @@ func main() {
 		}
 	}
 
-	options := func(sc *standardstream.Client, kc *kafka.Client) {
-		sc.Logger = logger.L
-		kc.Logger = logger.L
-	}
+	producer := setupProducer()
 
-	producer, err := streamclient.NewProducer(options)
-	if err != nil {
-		logger.L.Fatal("Unable to initialize producer", zap.Error(err))
-	}
 	defer func() {
 		if cerr := producer.Close(); cerr != nil {
 			logger.L.Fatal("Error closing producer", zap.Error(err))
@@ -162,6 +151,28 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 	}
 }
 
+func setupProducer() stream.Producer {
+	options := func(sc *standardstream.Client, kc *kafka.Client) {
+		sc.Logger = logger.L
+		kc.Logger = logger.L
+	}
+
+	producer, err := streamclient.NewProducer(options)
+	if err != nil {
+		logger.L.Fatal("Unable to initialize producer", zap.Error(err))
+	}
+
+	return producer
+}
+
 func topicName(tableName string) string {
 	return fmt.Sprintf("pg2kafka.%v.%v", databaseName, tableName)
+}
+
+func parseDatabaseName(conninfo string) string {
+	dbURL, err := url.Parse(conninfo)
+	if err != nil {
+		logger.L.Fatal("Error parsing db connection string", zap.Error(err))
+	}
+	return strings.TrimPrefix(dbURL.Path, "/")
 }
