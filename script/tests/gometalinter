@@ -32,4 +32,5 @@ gometalinter \
   --deadline=300s \
   --exclude='.*_test\.go:.*is unused \(U1000\)' \
   --enable-all \
+  --disable=safesql \
   ./...
