@@ -65,7 +65,7 @@ BEGIN
   query := 'SELECT * FROM ' || table_name_ref;
 
   FOR rec IN EXECUTE query LOOP
-    changes := json_strip_nulls(row_to_json(rec));
+    changes := row_to_json(rec);
     external_id := changes->>external_id_ref;
 
     INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data)
