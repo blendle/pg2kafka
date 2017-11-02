@@ -19,12 +19,16 @@ import (
 	"go.uber.org/zap"
 )
 
-var databaseName string
+var (
+	databaseName string
+	version      string
+)
 
 func main() {
 	conf := &logger.Config{
 		App:         "pg2kafka",
 		Tier:        "stream-processor",
+		Version:     version,
 		Production:  os.Getenv("ENV") == "production",
 		Environment: os.Getenv("ENV"),
 	}
@@ -79,6 +83,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
+	logger.L.Info("pg2kafka is now listening to notifications")
 	waitForNotification(listener, producer, eq, signals)
 }
 
