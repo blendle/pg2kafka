@@ -19,12 +19,16 @@ import (
 	"go.uber.org/zap"
 )
 
-var databaseName string
+var (
+	databaseName string
+	version      string
+)
 
 func main() {
 	conf := &logger.Config{
 		App:         "pg2kafka",
 		Tier:        "stream-processor",
+		Version:     version,
 		Production:  os.Getenv("ENV") == "production",
 		Environment: os.Getenv("ENV"),
 	}
