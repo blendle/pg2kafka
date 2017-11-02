@@ -71,6 +71,8 @@ BEGIN
     INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data)
     VALUES (external_id, table_name_ref, 'SNAPSHOT', changes);
   END LOOP;
+
+  PERFORM pg_notify('outbound_event_queue', '{ "message": "snapshot created" }');
 END
 $_$;
 
