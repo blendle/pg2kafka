@@ -53,3 +53,6 @@ UPDATE users SET name = 'bartos' WHERE name = 'bart';
 The producer topics are all in the form of
 `pg2kafka.$database_name.$table_name`, you need to make sure that this topic
 exists, or else pg2kafka will crash.
+
+## License
+pg2kafka is released under the ISC license. See [LICENSE](https://github.com/blendle/pg2kafka/blob/master/LICENSE) for details.
