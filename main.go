@@ -83,6 +83,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
+	logger.L.Info("pg2kafka is now listening to notifications")
 	waitForNotification(listener, producer, eq, signals)
 }
 
