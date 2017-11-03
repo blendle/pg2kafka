@@ -80,6 +80,15 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 		t.Errorf("Data did not match. Expected %v, got %v", "jurre@blendle.com", email)
 	}
 
+	externalID, err := jsonparser.GetString(msg.Value, "external_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if externalID != "fefc72b4-d8df-4039-9fb9-bfcb18066a2b" {
+		t.Errorf("Expected %v, got %v", "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", externalID)
+	}
+
 	msg = pt.Messages()[3]
 	email, err = jsonparser.GetString(msg.Value, "data", "email")
 	if err != nil {
