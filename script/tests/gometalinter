@@ -37,6 +37,7 @@ gometalinter \
   --deadline=300s \
   --concurrency=1 \
   --exclude='.*_test\.go:.*is unused \(U1000\)' \
+  --exclude='.*_test\.go:.*duplicate.+\(dupl\)' \
   --enable-all \
   --disable=safesql \
   ./...
