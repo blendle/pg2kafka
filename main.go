@@ -52,6 +52,8 @@ func main() {
 		if cerr := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); cerr != nil {
 			logger.L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(cerr))
 		}
+	} else {
+		logger.L.Info("Not performing database migrations due to missing `PERFORM_MIGRATIONS`.")
 	}
 
 	producer := setupProducer()
