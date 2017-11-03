@@ -182,8 +182,10 @@ func (b *ByteString) Scan(val interface{}) error {
 		*b = nil
 	case string:
 		*b = []byte(v)
+	case []byte:
+		*b = v
 	default:
-		return errors.New("unable to convert value to string")
+		return errors.New("unable to convert value to ByteString")
 	}
 
 	return nil

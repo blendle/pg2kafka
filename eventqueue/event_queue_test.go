@@ -92,7 +92,7 @@ var byteStringScan = []struct {
 	{nil, ByteString(nil), false},
 	{"", ByteString(""), false},
 	{"hello", ByteString("hello"), false},
-	{[]byte(`null`), ByteString(nil), true},
+	{[]byte("hi"), ByteString("hi"), false},
 	{1, ByteString(nil), true},
 }
 
