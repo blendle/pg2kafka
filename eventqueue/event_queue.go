@@ -155,8 +155,11 @@ func (eq *Queue) ConfigureOutboundEventQueueAndTriggers(path string) error {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (b *ByteString) MarshalJSON() ([]byte, error) {
-	bytes, err := json.Marshal(string(*b))
-	return bytes, err
+	if *b == nil {
+		return []byte("null"), nil
+	}
+
+	return append(append([]byte(`"`), *b...), byte('"')), nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -167,7 +170,7 @@ func (b *ByteString) UnmarshalJSON(d []byte) error {
 	return err
 }
 
-// Value implements the driver Valuer interface.
+// Value implements the driver.Valuer interface.
 func (b *ByteString) Value() (driver.Value, error) {
 	return string(*b), nil
 }
