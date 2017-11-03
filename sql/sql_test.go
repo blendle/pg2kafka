@@ -1,6 +1,7 @@
 package sql_test
 
 import (
+	"bytes"
 	"database/sql"
 	"os"
 	"testing"
@@ -149,6 +150,7 @@ func TestSQL_Snapshot(t *testing.T) {
 	);
 	INSERT INTO products (uid, name) VALUES ('duff-1', 'Duffs Beer');
 	INSERT INTO products (uid, name) VALUES ('duff-2', null);
+	INSERT INTO products (uid, name) VALUES (null, 'Duff Dry');
 	SELECT pg2kafka.setup('products', 'uid')
 	`)
 	if err != nil {
@@ -160,17 +162,21 @@ func TestSQL_Snapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(events) != 2 {
-		t.Fatalf("Expected 2 events, got %d", len(events))
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d", len(events))
 	}
 
-	if events[0].ExternalID != "duff-1" {
+	if !bytes.Equal(events[0].ExternalID, []byte("duff-1")) {
 		t.Fatalf("Incorrect external id, expected 'duff-1', got '%v'", events[0].ExternalID)
 	}
 
 	_, valueType, _, _ := jsonparser.Get(events[1].Data, "name")
 	if valueType != jsonparser.Null {
 		t.Errorf("Expected null, got %v", valueType)
+	}
+
+	if events[2].ExternalID != nil {
+		t.Fatalf("Incorrect external id, expected NULL, got %q", events[2].ExternalID)
 	}
 }
 

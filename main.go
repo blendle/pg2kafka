@@ -147,7 +147,7 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 		p.Messages() <- &stream.Message{
 			Value:     msg,
 			Topic:     topicName(event.TableName),
-			Key:       []byte(event.ExternalID),
+			Key:       event.ExternalID,
 			Timestamp: event.CreatedAt,
 		}
 

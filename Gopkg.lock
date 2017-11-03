@@ -17,7 +17,7 @@
   branch = "master"
   name = "github.com/blendle/go-streamprocessor"
   packages = ["stream","streamclient","streamclient/inmem","streamclient/kafka","streamclient/standardstream"]
-  revision = "648cfe4c5096d6372e170a0708713a32c4dab59c"
+  revision = "3088623c659743ad1306e20846678bf39b9cae01"
 
 [[projects]]
   name = "github.com/bsm/sarama-cluster"

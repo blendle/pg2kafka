@@ -6,7 +6,7 @@ CREATE SEQUENCE IF NOT EXISTS pg2kafka.outbound_event_queue_id;
 CREATE TABLE IF NOT EXISTS pg2kafka.outbound_event_queue (
   id            integer NOT NULL DEFAULT nextval('pg2kafka.outbound_event_queue_id'::regclass),
   uuid          uuid NOT NULL DEFAULT uuid_generate_v4(),
-  external_id   varchar(255) NOT NULL,
+  external_id   varchar(255),
   table_name    varchar(255) NOT NULL,
   statement     varchar(20) NOT NULL,
   data          jsonb NOT NULL,
