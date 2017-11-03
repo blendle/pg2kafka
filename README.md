@@ -49,7 +49,7 @@ CREATE TABLE products (
   sku TEXT,
   name TEXT
 );
-````
+```
 
 And it already has some data in it:
 
@@ -101,6 +101,10 @@ UPDATE products SET name = 'Big Red Coffee Mug' WHERE sku = 'CM01-R';
 The producer topics are all in the form of
 `pg2kafka.$database_name.$table_name`, you need to make sure that this topic
 exists, or else pg2kafka will crash.
+
+You can optionally prepend a namespace to the Kafka topic, by setting the
+`TOPIC_NAMESPACE` environment variable. When doing this, the final topic name
+would be `pg2kafka.$namespace.$database_name.$table_name`.
 
 ## Development
 
