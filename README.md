@@ -15,8 +15,8 @@ It consists of two parts:
 production. If you run into issues, please open an issue.
 
 We use this as a way to reliably get data out of our hosted PostgreSQL databases
-where we cannot use systems like [http://debezium.io](debezium) or
-[https://github.com/confluentinc/bottledwater-pg](bottled water) since we do not
+where we cannot use systems like [debezium](http://debezium.io) or
+[bottled water](https://github.com/confluentinc/bottledwater-pg) since we do not
 have access to the WAL logs and cannot install native extensions or run binaries
 on the database host machine.
 
