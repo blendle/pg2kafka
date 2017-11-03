@@ -2,6 +2,7 @@ package eventqueue
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"io/ioutil"
 	"time"
@@ -31,11 +32,15 @@ const (
 	`
 )
 
+// ByteString is a special type of byte array with implemented interfaces to
+// convert from and to JSON and SQL values.
+type ByteString []byte
+
 // Event represents the queued event in the database
 type Event struct {
 	ID         int             `json:"-"`
 	UUID       string          `json:"uuid"`
-	ExternalID []byte          `json:"external_id"`
+	ExternalID ByteString      `json:"external_id"`
 	TableName  string          `json:"-"`
 	Statement  string          `json:"statement"`
 	Data       json.RawMessage `json:"data"`
@@ -143,6 +148,39 @@ func (eq *Queue) ConfigureOutboundEventQueueAndTriggers(path string) error {
 	_, err = eq.db.Exec(string(functions))
 	if err != nil {
 		return errors.Wrap(err, "Error creating triggers")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (b *ByteString) MarshalJSON() ([]byte, error) {
+	bytes, err := json.Marshal(string(*b))
+	return bytes, err
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (b *ByteString) UnmarshalJSON(d []byte) error {
+	var s string
+	err := json.Unmarshal(d, &s)
+	*b = ByteString(s)
+	return err
+}
+
+// Value implements the driver Valuer interface.
+func (b *ByteString) Value() (driver.Value, error) {
+	return string(*b), nil
+}
+
+// Scan implements the sql.Scanner interface.
+func (b *ByteString) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case nil:
+		*b = nil
+	case string:
+		*b = []byte(v)
+	default:
+		return errors.New("unable to convert value to string")
 	}
 
 	return nil

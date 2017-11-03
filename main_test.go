@@ -86,7 +86,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 	}
 
 	if externalID != "fefc72b4-d8df-4039-9fb9-bfcb18066a2b" {
-		t.Errorf("Data did not match. Expected %v, got %v", "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", externalID)
+		t.Errorf("Expected %v, got %v", "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", externalID)
 	}
 
 	msg = pt.Messages()[3]
