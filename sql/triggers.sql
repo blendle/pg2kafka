@@ -80,10 +80,21 @@ CREATE OR REPLACE FUNCTION pg2kafka.setup(table_name_ref regclass, external_id_n
 LANGUAGE plpgsql
 AS $_$
 DECLARE
+  existing_id varchar;
   trigger_name varchar;
   lock_query varchar;
   trigger_query varchar;
 BEGIN
+  SELECT pg2kafka.external_id_relations.external_id INTO existing_id
+  FROM pg2kafka.external_id_relations
+  WHERE pg2kafka.external_id_relations.table_name = table_name_ref::varchar;
+
+  IF existing_id != '' THEN
+    RAISE WARNING 'table/external_id relation already exists for %/%. Skipping setup.', table_name_ref, external_id_name;
+
+    RETURN;
+  END IF;
+
   INSERT INTO pg2kafka.external_id_relations(external_id, table_name)
   VALUES (external_id_name, table_name_ref);
 

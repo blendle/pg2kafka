@@ -32,6 +32,26 @@ func TestSQL_SetupPG2Kafka(t *testing.T) {
 	}
 }
 
+func TestSQL_SetupPG2Kafka_Idempotency(t *testing.T) {
+	db, _, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`SELECT pg2kafka.setup('users', 'uuid');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	triggerName := ""
+	err = db.QueryRow(selectTriggerNamesQuery).Scan(&triggerName)
+	if err != nil {
+		t.Fatalf("Error fetching triggers: %v", err)
+	}
+
+	if triggerName != "users_enqueue_event" {
+		t.Fatalf("Expected trigger 'users_enqueue_event', got: '%v'", triggerName)
+	}
+}
+
 func TestSQL_Trigger_Insert(t *testing.T) {
 	db, eq, cleanup := setupTriggers(t)
 	defer cleanup()
