@@ -88,24 +88,13 @@ UPDATE products SET name = 'Big Red Coffee Mug' WHERE sku = 'CM01-R';
 
 ```json
 {
-  "uuid": "b3a5460a-60ad-4f88-b628-1cb57a11de53",
-  "external_id": "e5a30fc0-83b1-4203-ac4a-a07f873e1acf",
-  "statement": "SNAPSHOT",
-  "data": {
-    "name": "bart",
-    "uuid": "3798821b-446a-4ca0-8524-989d266dfefe",
-    "email": "bart@example.com"
-  },
-  "created_at": "2017-10-30T10:42:40.334213Z"
-}
-{
-  "uuid": "e5a30fc0-83b1-4203-ac4a-a07f873e1acf",
-  "external_id": "3798821b-446a-4ca0-8524-989d266dfefe",
+  "uuid": "d6521ce5-4068-45e4-a9ad-c0949033a55b",
+  "external_id": "CM01-R",
   "statement": "UPDATE",
   "data": {
-    "name": "bartos"
+    "name": "Big Red Coffee Mug"
   },
-  "created_at": "2017-10-30T10:42:54.342913Z"
+  "created_at": "2017-11-02T16:15:13.94077Z"
 }
 ```
 
