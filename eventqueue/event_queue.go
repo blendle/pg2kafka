@@ -35,7 +35,7 @@ const (
 type Event struct {
 	ID         int             `json:"-"`
 	UUID       string          `json:"uuid"`
-	ExternalID string          `json:"external_id"`
+	ExternalID []byte          `json:"external_id"`
 	TableName  string          `json:"-"`
 	Statement  string          `json:"statement"`
 	Data       json.RawMessage `json:"data"`

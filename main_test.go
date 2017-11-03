@@ -19,23 +19,35 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 	// TODO: Use actual trigger to generate this?
 	events := []*eventqueue.Event{
 		{
-			ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b",
+			ExternalID: []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
 			TableName:  "users",
 			Statement:  "UPDATE",
 			Data:       []byte(`{ "email": "j@blendle.com" }`),
 			Processed:  true,
 		},
 		{
-			ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b",
+			ExternalID: []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
 			TableName:  "users",
 			Statement:  "UPDATE",
 			Data:       []byte(`{ "email": "jurre@blendle.com" }`),
 		},
 		{
-			ExternalID: "fefc72b4-d8df-4039-9fb9-bfcb18066a2b",
+			ExternalID: []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
 			TableName:  "users",
 			Statement:  "UPDATE",
 			Data:       []byte(`{ "email": "jurres@blendle.com" }`),
+		},
+		{
+			ExternalID: nil,
+			TableName:  "users",
+			Statement:  "CREATE",
+			Data:       []byte(`{ "email": "bart@simpsons.com" }`),
+		},
+		{
+			ExternalID: nil,
+			TableName:  "users",
+			Statement:  "UPDATE",
+			Data:       []byte(`{ "email": "bartman@simpsons.com" }`),
 		},
 	}
 	if err := insert(db, events); err != nil {
@@ -52,20 +64,34 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 	ProcessEvents(p, eq)
 
-	expected := 2
+	expected := 4
 	actual := len(pt.Messages())
 	if actual != expected {
 		t.Fatalf("Unexpected number of messages produced. Expected %d, got %d", expected, actual)
 	}
 
 	msg := pt.Messages()[0]
-	email, err := jsonparser.GetString(msg, "data", "email")
+	email, err := jsonparser.GetString(msg.Value, "data", "email")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if email != "jurre@blendle.com" {
 		t.Errorf("Data did not match. Expected %v, got %v", "jurre@blendle.com", email)
+	}
+
+	msg = pt.Messages()[3]
+	email, err = jsonparser.GetString(msg.Value, "data", "email")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if email != "bartman@simpsons.com" {
+		t.Errorf("Data did not match. Expected %v, got %v", "bartman@simpsons.com", email)
+	}
+
+	if msg.Key != nil {
+		t.Errorf("Expected key to be nil, got %v", msg.Key)
 	}
 }
 
