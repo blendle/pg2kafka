@@ -90,6 +90,8 @@ BEGIN
   WHERE pg2kafka.external_id_relations.table_name = table_name_ref::varchar;
 
   IF existing_id != '' THEN
+    RAISE WARNING 'table/external_id relation already exists for %/%. Skipping setup.', table_name_ref, external_id_name;
+
     RETURN;
   END IF;
 
