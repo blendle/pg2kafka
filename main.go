@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	databaseName string
-	version      string
+	topicNamespace string
+	version        string
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	logger.Init(conf)
 
 	conninfo := os.Getenv("DATABASE_URL")
-	databaseName = parseDatabaseName(conninfo)
+	topicNamespace = parseTopicNamespace(os.Getenv("TOPIC_NAMESPACE"), parseDatabaseName(conninfo))
 
 	eq, err := eventqueue.New(conninfo)
 	if err != nil {
@@ -171,7 +171,7 @@ func setupProducer() stream.Producer {
 }
 
 func topicName(tableName string) string {
-	return fmt.Sprintf("pg2kafka.%v.%v", databaseName, tableName)
+	return fmt.Sprintf("pg2kafka.%v.%v", topicNamespace, tableName)
 }
 
 func parseDatabaseName(conninfo string) string {
@@ -180,4 +180,13 @@ func parseDatabaseName(conninfo string) string {
 		logger.L.Fatal("Error parsing db connection string", zap.Error(err))
 	}
 	return strings.TrimPrefix(dbURL.Path, "/")
+}
+
+func parseTopicNamespace(topicNamespace string, databaseName string) string {
+	s := databaseName
+	if topicNamespace != "" {
+		s = topicNamespace + "." + s
+	}
+
+	return s
 }

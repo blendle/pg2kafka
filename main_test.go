@@ -73,7 +73,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 func setup(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	t.Helper()
-	databaseName = "users"
+	topicNamespace = "users"
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
@@ -121,4 +121,25 @@ func insert(db *sql.DB, events []*eventqueue.Event) error {
 		}
 	}
 	return tx.Commit()
+}
+
+var parseTopicNamespacetests = []struct {
+	in1, in2, out string
+}{
+	{"", "", ""},
+	{"", "world", "world"},
+	{"hello", "", "hello."},
+	{"hello", "world", "hello.world"},
+}
+
+func TestParseTopicNamespace(t *testing.T) {
+	for _, tt := range parseTopicNamespacetests {
+		t.Run(tt.out, func(t *testing.T) {
+			actual := parseTopicNamespace(tt.in1, tt.in2)
+
+			if actual != tt.out {
+				t.Errorf("parseTopicNamespace(%q, %q) => %v, want: %v", tt.in1, tt.in2, actual, tt.out)
+			}
+		})
+	}
 }
