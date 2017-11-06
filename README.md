@@ -69,13 +69,26 @@ This will create snapshots of the current data in that table:
 
 ```json
 {
-  "uuid": "d6521ce5-4068-45e4-a9ad-c0949033a55b",
-  "external_id": "CM01-R",
-  "statement": "UPDATE",
+  "uuid": "ea76e080-6acd-413a-96b3-131a42ab1002",
+  "external_id": "CM01-B",
+  "statement": "SNAPSHOT",
   "data": {
-    "name": "Big Red Coffee Mug"
+    "id": 2,
+    "sku": "CM01-B",
+    "name": "Blue Coffee Mug"
   },
-  "created_at": "2017-11-02T16:15:13.94077Z"
+  "created_at": "2017-11-02T16:14:36.709116Z"
+}
+{
+  "uuid": "e1c0008d-6b7a-455a-afa6-c1c2eebd65d3",
+  "external_id": "CM01-R",
+  "statement": "SNAPSHOT",
+  "data": {
+    "id": 1,
+    "sku": "CM01-R",
+    "name": "Red Coffee Mug"
+  },
+  "created_at": "2017-11-02T16:14:36.709116Z"
 }
 ```
 
