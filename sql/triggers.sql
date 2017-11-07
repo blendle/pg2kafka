@@ -6,7 +6,6 @@ DECLARE
   changes jsonb;
   col record;
   outbound_event record;
-  notification json;
 BEGIN
   SELECT pg2kafka.external_id_relations.external_id INTO external_id
   FROM pg2kafka.external_id_relations
@@ -41,8 +40,7 @@ BEGIN
   VALUES (external_id, TG_TABLE_NAME, TG_OP, changes)
   RETURNING * INTO outbound_event;
 
-  notification := row_to_json(outbound_event);
-  PERFORM pg_notify('outbound_event_queue', notification::text);
+  PERFORM pg_notify('outbound_event_queue', TG_OP);
 
   RETURN NULL;
 END
@@ -72,7 +70,7 @@ BEGIN
     VALUES (external_id, table_name_ref, 'SNAPSHOT', changes);
   END LOOP;
 
-  PERFORM pg_notify('outbound_event_queue', '{ "message": "snapshot created" }');
+  PERFORM pg_notify('outbound_event_queue', 'SNAPSHOT');
 END
 $_$;
 
