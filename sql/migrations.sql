@@ -14,9 +14,8 @@ CREATE TABLE IF NOT EXISTS pg2kafka.outbound_event_queue (
   processed     boolean DEFAULT false
 );
 
-CREATE INDEX IF NOT EXISTS outbound_event_queue_id_not_processed_index
-ON pg2kafka.outbound_event_queue (id)
-WHERE processed IS FALSE;
+CREATE INDEX IF NOT EXISTS outbound_event_queue_id_index
+ON pg2kafka.outbound_event_queue (id);
 
 CREATE SEQUENCE IF NOT EXISTS pg2kafka.external_id_relations_id;
 CREATE TABLE IF NOT EXISTS pg2kafka.external_id_relations (
