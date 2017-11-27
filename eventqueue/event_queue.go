@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"io/ioutil"
+	"math"
 	"time"
 
 	"github.com/pkg/errors"
@@ -112,7 +113,7 @@ func (eq *Queue) UnprocessedEventPagesCount() (int, error) {
 	}
 
 	limit := 1000
-	return count % limit, nil
+	return int(math.Ceil(float64(count) / float64(limit))), nil
 }
 
 // MarkEventAsProcessed marks an even as processed.
