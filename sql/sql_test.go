@@ -136,6 +136,48 @@ func TestSQL_Trigger_UpdateToNull(t *testing.T) {
 	if valueType != jsonparser.Null {
 		t.Errorf("Expected null, got %v", valueType)
 	}
+
+	_, valueType, _, _ = jsonparser.Get(events[1].Data, "name")
+	if valueType != jsonparser.NotExist {
+		t.Error("Expected data not to contain key 'name'")
+	}
+}
+
+func TestSQL_Trigger_UpdateExtensionColumn(t *testing.T) {
+	db, eq, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`INSERT INTO users (name, email, properties, data) VALUES ('jurre', 'jurre@blendle.com', 'a=>1'::hstore, '{ "foo": "bar" }'::jsonb)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec(`UPDATE users SET properties = 'a=>2,b=>2'::hstore WHERE name = 'jurre'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec(`UPDATE users SET data = jsonb_set(data, '{foo}', '"baz"') WHERE name = 'jurre'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := eq.FetchUnprocessedRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(events) != 3 {
+		t.Fatalf("Expected 2 events, got %d", len(events))
+	}
+
+	if string(events[1].Data) != `{"properties": {"a": "2", "b": "2"}}` {
+		t.Errorf("Data did not match: %q", events[1].Data)
+	}
+
+	if string(events[2].Data) != `{"data": {"foo": "baz"}}` {
+		t.Errorf("Data did not match: %q", events[2].Data)
+	}
 }
 
 func TestSQL_Snapshot(t *testing.T) {
@@ -195,11 +237,14 @@ func setupTriggers(t *testing.T) (*sql.DB, *eventqueue.Queue, func()) {
 	}
 
 	_, err = db.Exec(`
+	CREATE EXTENSION IF NOT EXISTS hstore;
 	DROP TABLE IF EXISTS users cascade;
 	CREATE TABLE users (
-		uuid  uuid NOT NULL DEFAULT uuid_generate_v4(),
-		name  varchar,
-		email text
+		uuid       uuid NOT NULL DEFAULT uuid_generate_v4(),
+		name       varchar,
+		email      text,
+		properties hstore,
+		data       jsonb
 	);
 	SELECT pg2kafka.setup('users', 'uuid');
 	`)
