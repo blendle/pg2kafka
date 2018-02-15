@@ -23,7 +23,7 @@ BEGIN
     changes := row_to_json(NEW);
     -- Remove object that didn't change
     FOR col IN SELECT * FROM jsonb_each(row_to_json(OLD)::jsonb) LOOP
-      IF changes @> jsonb_build_object(col.key, col.value) THEN
+      IF changes->col.key = col.value THEN
         changes = changes - col.key;
       END IF;
     END LOOP;
