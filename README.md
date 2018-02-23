@@ -93,7 +93,7 @@ This will create snapshots of the current data in that table:
 ```
 
 Now once you start making changes to your table, you should start seeing events
-come in on the `pg2kafka.shop_test.` topic:
+come in on the `pg2kafka.shop_test.products` topic:
 
 ```sql
 UPDATE products SET name = 'Big Red Coffee Mug' WHERE sku = 'CM01-R';
