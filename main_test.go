@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/blendle/go-streamprocessor/streamclient/inmem"
 	"github.com/buger/jsonparser"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 
 	"github.com/blendle/pg2kafka/eventqueue"
 	_ "github.com/lib/pq"
@@ -54,23 +54,19 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 		t.Fatalf("Error inserting events: %v", err)
 	}
 
-	opts := func(c *inmem.Client) {
-		c.ProducerTopic = "users"
+	p := &mockProducer{
+		messages: make([]*kafka.Message, 0),
 	}
-	s := inmem.NewStore()
-	pt := s.NewTopic("users")
-	c := inmem.NewClientWithStore(s, opts)
-	p := c.NewProducer()
 
 	ProcessEvents(p, eq)
 
 	expected := 4
-	actual := len(pt.Messages())
+	actual := len(p.messages)
 	if actual != expected {
 		t.Fatalf("Unexpected number of messages produced. Expected %d, got %d", expected, actual)
 	}
 
-	msg := pt.Messages()[0]
+	msg := p.messages[0]
 	email, err := jsonparser.GetString(msg.Value, "data", "email")
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +85,7 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 		t.Errorf("Expected %v, got %v", "fefc72b4-d8df-4039-9fb9-bfcb18066a2b", externalID)
 	}
 
-	msg = pt.Messages()[3]
+	msg = p.messages[3]
 	email, err = jsonparser.GetString(msg.Value, "data", "email")
 	if err != nil {
 		t.Fatal(err)
@@ -99,8 +95,8 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 		t.Errorf("Data did not match. Expected %v, got %v", "bartman@simpsons.com", email)
 	}
 
-	if msg.Key != nil {
-		t.Errorf("Expected key to be nil, got %v", msg.Key)
+	if len(msg.Key) != 0 {
+		t.Errorf("Expected empty key, got %v", msg.Key)
 	}
 }
 
@@ -177,4 +173,21 @@ func TestParseTopicNamespace(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockProducer struct {
+	messages []*kafka.Message
+}
+
+func (p *mockProducer) Close() {
+}
+func (p *mockProducer) Flush(timeout int) int {
+	return 0
+}
+func (p *mockProducer) Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error {
+	p.messages = append(p.messages, msg)
+	go func() {
+		deliveryChan <- msg
+	}()
+	return nil
 }

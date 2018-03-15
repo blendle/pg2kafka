@@ -10,11 +10,9 @@ import (
 	"time"
 
 	logger "github.com/blendle/go-logger"
-	"github.com/blendle/go-streamprocessor/stream"
-	"github.com/blendle/go-streamprocessor/streamclient"
-	"github.com/blendle/go-streamprocessor/streamclient/kafka"
-	"github.com/blendle/go-streamprocessor/streamclient/standardstream"
 	"github.com/blendle/pg2kafka/eventqueue"
+	"github.com/blendle/pg2kafka/stream"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/lib/pq"
 	"go.uber.org/zap"
 )
@@ -57,12 +55,8 @@ func main() {
 	}
 
 	producer := setupProducer()
-
-	defer func() {
-		if cerr := producer.Close(); cerr != nil {
-			logger.L.Fatal("Error closing producer", zap.Error(err))
-		}
-	}()
+	defer producer.Close()
+	defer producer.Flush(1000)
 
 	reportProblem := func(ev pq.ListenerEventType, err error) {
 		if err != nil {
@@ -141,11 +135,22 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 			logger.L.Fatal("Error parsing event", zap.Error(err))
 		}
 
-		p.Messages() <- &stream.Message{
-			Value:     msg,
-			Topic:     topicName(event.TableName),
-			Key:       event.ExternalID,
-			Timestamp: event.CreatedAt,
+		deliveryChan := make(chan kafka.Event)
+		topic := topicName(event.TableName)
+		err = p.Produce(&kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &topic},
+			Value:          msg,
+			Key:            event.ExternalID,
+			Timestamp:      event.CreatedAt,
+		}, deliveryChan)
+		if err != nil {
+			logger.L.Fatal("Failed to produce", zap.Error(err))
+		}
+		e := <-deliveryChan
+
+		result := e.(*kafka.Message)
+		if result.TopicPartition.Error != nil {
+			logger.L.Fatal("Delivery failed", zap.Error(result.TopicPartition.Error))
 		}
 
 		err = eq.MarkEventAsProcessed(event.ID)
@@ -156,17 +161,11 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 }
 
 func setupProducer() stream.Producer {
-	options := func(sc *standardstream.Client, kc *kafka.Client) {
-		sc.Logger = logger.L
-		kc.Logger = logger.L
-	}
-
-	producer, err := streamclient.NewProducer(options)
+	p, err := stream.NewProducer()
 	if err != nil {
-		logger.L.Fatal("Unable to initialize producer", zap.Error(err))
+		panic(err)
 	}
-
-	return producer
+	return p
 }
 
 func topicName(tableName string) string {
