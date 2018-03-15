@@ -11,9 +11,9 @@ import (
 
 	logger "github.com/blendle/go-logger"
 	"github.com/blendle/pg2kafka/eventqueue"
-	"github.com/blendle/pg2kafka/stream"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -21,6 +21,15 @@ var (
 	topicNamespace string
 	version        string
 )
+
+// Producer is the minimal required interface pg2kafka requires to produce
+// events to a kafka topic.
+type Producer interface {
+	Close()
+	Flush(int) int
+
+	Produce(*kafka.Message, chan kafka.Event) error
+}
 
 func main() {
 	conf := &logger.Config{
@@ -85,7 +94,7 @@ func main() {
 
 // ProcessEvents queries the database for unprocessed events and produces them
 // to kafka.
-func ProcessEvents(p stream.Producer, eq *eventqueue.Queue) {
+func ProcessEvents(p Producer, eq *eventqueue.Queue) {
 	events, err := eq.FetchUnprocessedRecords()
 	if err != nil {
 		logger.L.Error("Error listening to pg", zap.Error(err))
@@ -94,7 +103,7 @@ func ProcessEvents(p stream.Producer, eq *eventqueue.Queue) {
 	produceMessages(p, events, eq)
 }
 
-func processQueue(p stream.Producer, eq *eventqueue.Queue) {
+func processQueue(p Producer, eq *eventqueue.Queue) {
 	pageCount, err := eq.UnprocessedEventPagesCount()
 	if err != nil {
 		logger.L.Fatal("Error selecting count", zap.Error(err))
@@ -107,7 +116,7 @@ func processQueue(p stream.Producer, eq *eventqueue.Queue) {
 
 func waitForNotification(
 	l *pq.Listener,
-	p stream.Producer,
+	p Producer,
 	eq *eventqueue.Queue,
 	signals chan os.Signal,
 ) {
@@ -128,7 +137,7 @@ func waitForNotification(
 	}
 }
 
-func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventqueue.Queue) {
+func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queue) {
 	for _, event := range events {
 		msg, err := json.Marshal(event)
 		if err != nil {
@@ -160,11 +169,27 @@ func produceMessages(p stream.Producer, events []*eventqueue.Event, eq *eventque
 	}
 }
 
-func setupProducer() stream.Producer {
-	p, err := stream.NewProducer()
+func setupProducer() Producer {
+	url, err := url.Parse(os.Getenv("KAFKA_PRODUCER_URL"))
 	if err != nil {
-		panic(err)
+		panic(errors.Wrap(err, "failed to read KAFKA_PRODUCER_URL as an url"))
 	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = os.Getenv("HOSTNAME")
+	}
+
+	p, err := kafka.NewProducer(&kafka.ConfigMap{
+		"client.id":         hostname,
+		"bootstrap.servers": url.Host,
+		"partitioner":       "murmur2",
+		"compression.codec": "snappy",
+	})
+	if err != nil {
+		panic(errors.Wrap(err, "failed to setup producer"))
+	}
+
 	return p
 }
 
