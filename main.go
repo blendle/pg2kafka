@@ -146,10 +146,13 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 
 		topic := topicName(event.TableName)
 		message := &kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value:          msg,
-			Key:            event.ExternalID,
-			Timestamp:      event.CreatedAt,
+			TopicPartition: kafka.TopicPartition{
+				Topic:     &topic,
+				Partition: kafka.PartitionAny, // nolint: gotype
+			},
+			Value:     msg,
+			Key:       event.ExternalID,
+			Timestamp: event.CreatedAt,
 		}
 		if os.Getenv("DRY_RUN") != "" {
 			logger.L.Info("Would produce message", zap.Any("message", message))
