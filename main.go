@@ -144,24 +144,28 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 			logger.L.Fatal("Error parsing event", zap.Error(err))
 		}
 
-		deliveryChan := make(chan kafka.Event)
 		topic := topicName(event.TableName)
-		err = p.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic},
+		message := &kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 			Value:          msg,
 			Key:            event.ExternalID,
 			Timestamp:      event.CreatedAt,
-		}, deliveryChan)
-		if err != nil {
-			logger.L.Fatal("Failed to produce", zap.Error(err))
 		}
-		e := <-deliveryChan
+		if os.Getenv("DRY_RUN") != "" {
+			logger.L.Info("Would produce message", zap.Any("message", message))
+		} else {
+			deliveryChan := make(chan kafka.Event)
+			err = p.Produce(message, deliveryChan)
+			if err != nil {
+				logger.L.Fatal("Failed to produce", zap.Error(err))
+			}
+			e := <-deliveryChan
 
-		result := e.(*kafka.Message)
-		if result.TopicPartition.Error != nil {
-			logger.L.Fatal("Delivery failed", zap.Error(result.TopicPartition.Error))
+			result := e.(*kafka.Message)
+			if result.TopicPartition.Error != nil {
+				logger.L.Fatal("Delivery failed", zap.Error(result.TopicPartition.Error))
+			}
 		}
-
 		err = eq.MarkEventAsProcessed(event.ID)
 		if err != nil {
 			logger.L.Fatal("Error marking record as processed", zap.Error(err))
@@ -170,9 +174,9 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 }
 
 func setupProducer() Producer {
-	url, err := url.Parse(os.Getenv("KAFKA_PRODUCER_URL"))
-	if err != nil {
-		panic(errors.Wrap(err, "failed to read KAFKA_PRODUCER_URL as an url"))
+	broker := os.Getenv("KAFKA_BROKER")
+	if broker == "" {
+		panic("missing KAFKA_BROKER environment")
 	}
 
 	hostname, err := os.Hostname()
@@ -182,7 +186,7 @@ func setupProducer() Producer {
 
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
 		"client.id":         hostname,
-		"bootstrap.servers": url.Host,
+		"bootstrap.servers": broker,
 		"partitioner":       "murmur2",
 		"compression.codec": "snappy",
 	})

@@ -157,12 +157,12 @@ kafka-topics \
 Then export the Kafka host as an URL so pg2kafka can use it:
 
 ```bash
-$ export KAFKA_PRODUCER_URL="kafka://localhost:9092"
+$ export KAFKA_BROKER="localhost:9092"
 ```
 
 ### Running the service locally
 
-Make sure you export the `DATABASE_URL` and `KAFKA_PRODUCER_URL`, and also
+Make sure you export the `DATABASE_URL` and `KAFKA_BROKER`, and also
 `export PERFORM_MIGRATIONS=true`.
 
 ```bash
