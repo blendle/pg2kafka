@@ -2,6 +2,4 @@
 set -eu
 
 GIT_COMMIT=$(git rev-parse --short @)
-export CGO_ENABLED=0
-
-go build -ldflags "-X main.version=$GIT_COMMIT -s -extldflags -static" -a -installsuffix cgo .
+docker build -t "eu.gcr.io/bnl-blendle/pg2kafka:$GIT_COMMIT" .
