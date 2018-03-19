@@ -147,7 +147,7 @@ func TestSQL_Trigger_UpdateExtensionColumn(t *testing.T) {
 	db, eq, cleanup := setupTriggers(t)
 	defer cleanup()
 
-	_, err := db.Exec(`INSERT INTO users (name, email, properties, data) VALUES ('jurre', 'jurre@blendle.com', 'a=>1'::hstore, '{ "foo": "bar" }'::jsonb)`)
+	_, err := db.Exec(`INSERT INTO users (name, email, properties, data) VALUES ('jurre', 'jurre@blendle.com', 'a=>1'::hstore, '{ "foo": "bar" }'::jsonb)`) // nolint: lll
 	if err != nil {
 		t.Fatal(err)
 	}
