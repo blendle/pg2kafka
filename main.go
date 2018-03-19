@@ -138,6 +138,7 @@ func waitForNotification(
 }
 
 func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queue) {
+	deliveryChan := make(chan kafka.Event)
 	for _, event := range events {
 		msg, err := json.Marshal(event)
 		if err != nil {
@@ -157,7 +158,6 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 		if os.Getenv("DRY_RUN") != "" {
 			logger.L.Info("Would produce message", zap.Any("message", message))
 		} else {
-			deliveryChan := make(chan kafka.Event)
 			err = p.Produce(message, deliveryChan)
 			if err != nil {
 				logger.L.Fatal("Failed to produce", zap.Error(err))
