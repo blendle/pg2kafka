@@ -20,6 +20,11 @@ where we cannot use systems like [debezium](http://debezium.io) or
 have access to the WAL logs and cannot install native extensions or run binaries
 on the database host machine.
 
+The following SQL statements are used to send updates to the relevant topic:
+
+* `INSERT`
+* `UPDATE`
+* `DELETE`
 
 ## Usage
 
