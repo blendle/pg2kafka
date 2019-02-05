@@ -124,7 +124,7 @@ You can optionally prepend a namespace to the Kafka topic, by setting the
 `TOPIC_NAMESPACE` environment variable. When doing this, the final topic name
 would be `pg2kafka.$namespace.$database_name.$table_name`.
 
-### cleanup
+### Cleanup
 
 If you decide not to use pg2kafka anymore you can cleanup the Database triggers
 using the following command:
