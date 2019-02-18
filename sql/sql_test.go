@@ -132,6 +132,11 @@ func TestSQL_Trigger_UpdateToNull(t *testing.T) {
 		t.Fatalf("Expected 2 events, got %d", len(events))
 	}
 
+	previousEmail, _ := jsonparser.GetString(events[1].PreviousData, "email")
+	if previousEmail != "jurre@blendle.com" {
+		t.Errorf("Expected 'jurre@blendle.com', got %s", previousEmail)
+	}
+
 	_, valueType, _, _ := jsonparser.Get(events[1].Data, "email")
 	if valueType != jsonparser.Null {
 		t.Errorf("Expected null, got %v", valueType)
@@ -219,6 +224,39 @@ func TestSQL_Snapshot(t *testing.T) {
 
 	if events[2].ExternalID != nil {
 		t.Fatalf("Incorrect external id, expected NULL, got %q", events[2].ExternalID)
+	}
+}
+
+func TestSQL_Trigger_Delete(t *testing.T) {
+	db, eq, cleanup := setupTriggers(t)
+	defer cleanup()
+
+	_, err := db.Exec(`INSERT INTO users (name, email) VALUES ('jurre', 'jurre@blendle.com')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec(`DELETE FROM users WHERE name = 'jurre'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := eq.FetchUnprocessedRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 events, got %d", len(events))
+	}
+
+	if len(events[1].Data) != 2 {
+		t.Errorf("Expected {}, got %s", string(events[0].Data))
+	}
+
+	previousEmail, _ := jsonparser.GetString(events[1].PreviousData, "email")
+	if previousEmail != "jurre@blendle.com" {
+		t.Errorf("Expected 'jurre@blendle.com', got %s", previousEmail)
 	}
 }
 

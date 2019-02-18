@@ -112,6 +112,9 @@ UPDATE products SET name = 'Big Red Coffee Mug' WHERE sku = 'CM01-R';
   "data": {
     "name": "Big Red Coffee Mug"
   },
+  "previous_data": {
+    "name": "Red Coffee Mug"
+  },
   "created_at": "2017-11-02T16:15:13.94077Z"
 }
 ```

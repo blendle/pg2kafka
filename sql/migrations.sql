@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS pg2kafka.outbound_event_queue (
   table_name    varchar(255) NOT NULL,
   statement     varchar(20) NOT NULL,
   data          jsonb NOT NULL,
+  previous_data jsonb NOT NULL,
   created_at    timestamp NOT NULL DEFAULT current_timestamp,
   processed     boolean DEFAULT false
 );

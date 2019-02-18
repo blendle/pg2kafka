@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// nolint: gocyclo
 func TestFetchUnprocessedRecords(t *testing.T) {
 	db, eq, cleanup := setup(t)
 	defer cleanup()
@@ -19,35 +20,40 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 	// TODO: Use actual trigger to generate this?
 	events := []*eventqueue.Event{
 		{
-			ExternalID: []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
-			TableName:  "users",
-			Statement:  "UPDATE",
-			Data:       []byte(`{ "email": "j@blendle.com" }`),
-			Processed:  true,
+			ExternalID:   []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
+			TableName:    "users",
+			Statement:    "UPDATE",
+			Data:         []byte(`{ "email": "j@blendle.com" }`),
+			PreviousData: []byte(`{}`),
+			Processed:    true,
 		},
 		{
-			ExternalID: []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
-			TableName:  "users",
-			Statement:  "UPDATE",
-			Data:       []byte(`{ "email": "jurre@blendle.com" }`),
+			ExternalID:   []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
+			TableName:    "users",
+			Statement:    "UPDATE",
+			Data:         []byte(`{ "email": "jurre@blendle.com" }`),
+			PreviousData: []byte(`{ "email": "j@blendle.com" }`),
 		},
 		{
-			ExternalID: []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
-			TableName:  "users",
-			Statement:  "UPDATE",
-			Data:       []byte(`{ "email": "jurres@blendle.com" }`),
+			ExternalID:   []byte("fefc72b4-d8df-4039-9fb9-bfcb18066a2b"),
+			TableName:    "users",
+			Statement:    "UPDATE",
+			Data:         []byte(`{ "email": "jurres@blendle.com" }`),
+			PreviousData: []byte(`{ "email": "jurre@blendle.com" }`),
 		},
 		{
-			ExternalID: nil,
-			TableName:  "users",
-			Statement:  "CREATE",
-			Data:       []byte(`{ "email": "bart@simpsons.com" }`),
+			ExternalID:   nil,
+			TableName:    "users",
+			Statement:    "CREATE",
+			Data:         []byte(`{ "email": "bart@simpsons.com" }`),
+			PreviousData: []byte(`{}`),
 		},
 		{
-			ExternalID: nil,
-			TableName:  "users",
-			Statement:  "UPDATE",
-			Data:       []byte(`{ "email": "bartman@simpsons.com" }`),
+			ExternalID:   nil,
+			TableName:    "users",
+			Statement:    "UPDATE",
+			Data:         []byte(`{ "email": "bartman@simpsons.com" }`),
+			PreviousData: []byte(`{ "email": "bart@simpsons.com" }`),
 		},
 	}
 	if err := insert(db, events); err != nil {
@@ -76,6 +82,15 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 		t.Errorf("Data did not match. Expected %v, got %v", "jurre@blendle.com", email)
 	}
 
+	previousEmail, err := jsonparser.GetString(msg.Value, "previous_data", "email")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if previousEmail != "j@blendle.com" {
+		t.Errorf("Data did not match. Expected %v, got %v", "j@blendle.com", previousEmail)
+	}
+
 	externalID, err := jsonparser.GetString(msg.Value, "external_id")
 	if err != nil {
 		t.Fatal(err)
@@ -93,6 +108,15 @@ func TestFetchUnprocessedRecords(t *testing.T) {
 
 	if email != "bartman@simpsons.com" {
 		t.Errorf("Data did not match. Expected %v, got %v", "bartman@simpsons.com", email)
+	}
+
+	previousEmail, err = jsonparser.GetString(msg.Value, "previous_data", "email")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if previousEmail != "bart@simpsons.com" {
+		t.Errorf("Data did not match. Expected %v, got %v", "bart@simpsons.com", email)
 	}
 
 	if len(msg.Key) != 0 {
@@ -132,8 +156,9 @@ func insert(db *sql.DB, events []*eventqueue.Event) error {
 		return err
 	}
 	statement, err := tx.Prepare(`
-		INSERT INTO pg2kafka.outbound_event_queue (external_id, table_name, statement, data, processed)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO pg2kafka.outbound_event_queue
+		(external_id, table_name, statement, data, previous_data, processed)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`)
 	if err != nil {
 		if txerr := tx.Rollback(); txerr != nil {
@@ -143,7 +168,13 @@ func insert(db *sql.DB, events []*eventqueue.Event) error {
 	}
 
 	for _, e := range events {
-		_, serr := statement.Exec(e.ExternalID, e.TableName, e.Statement, e.Data, e.Processed)
+		_, serr := statement.Exec(
+			e.ExternalID,
+			e.TableName,
+			e.Statement,
+			e.Data,
+			e.PreviousData,
+			e.Processed)
 		if serr != nil {
 			if txerr := tx.Rollback(); err != nil {
 				return txerr

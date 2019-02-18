@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
+var ( // nolint: gochecknoglobals
 	topicNamespace string
 	version        string
 )
@@ -43,6 +43,7 @@ func main() {
 	logger.Init(conf)
 
 	conninfo := os.Getenv("DATABASE_URL")
+	fmt.Println(conninfo)
 	topicNamespace = parseTopicNamespace(os.Getenv("TOPIC_NAMESPACE"), parseDatabaseName(conninfo))
 
 	eq, err := eventqueue.New(conninfo)
