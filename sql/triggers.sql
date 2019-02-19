@@ -20,7 +20,7 @@ BEGIN
 
   IF TG_OP = 'INSERT' THEN
     changes := row_to_json(NEW);
-    previous := '{}'::jsonb;
+    previous := NULL;
   ELSIF TG_OP = 'UPDATE' THEN
     changes := row_to_json(NEW);
     previous := row_to_json(OLD);
@@ -70,7 +70,7 @@ BEGIN
 
   FOR rec IN EXECUTE query LOOP
     changes := row_to_json(rec);
-    previous := '{}'::jsonb;
+    previous := NULL;
     external_id := changes->>external_id_ref;
 
     INSERT INTO pg2kafka.outbound_event_queue(external_id, table_name, statement, data, previous_data)

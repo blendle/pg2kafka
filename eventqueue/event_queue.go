@@ -45,7 +45,7 @@ type Event struct {
 	TableName    string          `json:"-"`
 	Statement    string          `json:"statement"`
 	Data         json.RawMessage `json:"data"`
-	PreviousData json.RawMessage `json:"previous_data"`
+	PreviousData json.RawMessage `json:"previous_data,omitempty"`
 	CreatedAt    time.Time       `json:"created_at"`
 	Processed    bool            `json:"-"`
 }
@@ -81,6 +81,7 @@ func (eq *Queue) FetchUnprocessedRecords() ([]*Event, error) {
 
 	messages := []*Event{}
 	for rows.Next() {
+		previousData := &json.RawMessage{}
 		msg := &Event{}
 		err = rows.Scan(
 			&msg.ID,
@@ -89,11 +90,14 @@ func (eq *Queue) FetchUnprocessedRecords() ([]*Event, error) {
 			&msg.TableName,
 			&msg.Statement,
 			&msg.Data,
-			&msg.PreviousData,
+			&previousData,
 			&msg.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if previousData != nil {
+			msg.PreviousData = *previousData
 		}
 		messages = append(messages, msg)
 	}
