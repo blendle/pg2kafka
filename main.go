@@ -137,7 +137,6 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 		}
 
 		topic := topicName(event.TableName)
-		fmt.Printf("ini topic %s\n", topic)
 		message := &kafka.Message{
 			TopicPartition: kafka.TopicPartition{
 				Topic:     &topic,
