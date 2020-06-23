@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
-	logger "github.com/blendle/go-logger"
 	"github.com/blendle/pg2kafka/eventqueue"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -32,35 +31,27 @@ type Producer interface {
 }
 
 func main() {
-	conf := &logger.Config{
-		App:         "pg2kafka",
-		Tier:        "stream-processor",
-		Version:     version,
-		Production:  os.Getenv("ENV") == "production",
-		Environment: os.Getenv("ENV"),
-	}
-
-	logger.Init(conf)
 
 	conninfo := os.Getenv("DATABASE_URL")
 	topicNamespace = parseTopicNamespace(os.Getenv("TOPIC_NAMESPACE"), parseDatabaseName(conninfo))
 
 	eq, err := eventqueue.New(conninfo)
 	if err != nil {
-		logger.L.Fatal("Error opening db connection", zap.Error(err))
+		logrus.Fatalf("Error opening db connection %v", err)
+
 	}
 	defer func() {
 		if cerr := eq.Close(); cerr != nil {
-			logger.L.Fatal("Error closing db connection", zap.Error(cerr))
+			logrus.Fatalf("Error closing db connection %v", cerr)
 		}
 	}()
 
 	if os.Getenv("PERFORM_MIGRATIONS") == "true" {
 		if cerr := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); cerr != nil {
-			logger.L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(cerr))
+			logrus.Fatalf("Error configuring outbound_event_queue and triggers %v", cerr)
 		}
 	} else {
-		logger.L.Info("Not performing database migrations due to missing `PERFORM_MIGRATIONS`.")
+		logrus.Info("Not performing database migrations due to missing `PERFORM_MIGRATIONS`.")
 	}
 
 	producer := setupProducer()
@@ -69,16 +60,16 @@ func main() {
 
 	reportProblem := func(ev pq.ListenerEventType, err error) {
 		if err != nil {
-			logger.L.Error("Error handling postgres notify", zap.Error(err))
+			logrus.Errorf("Error handling postgres notify %v", err)
 		}
 	}
 	listener := pq.NewListener(conninfo, 10*time.Second, time.Minute, reportProblem)
 	if err := listener.Listen("outbound_event_queue"); err != nil {
-		logger.L.Error("Error listening to pg", zap.Error(err))
+		logrus.Errorf("Error listening to pg %v", err)
 	}
 	defer func() {
 		if cerr := listener.Close(); cerr != nil {
-			logger.L.Error("Error closing listener", zap.Error(cerr))
+			logrus.Errorf("Error closing listener %v", cerr)
 		}
 	}()
 
@@ -88,7 +79,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
-	logger.L.Info("pg2kafka is now listening to notifications")
+	logrus.Info("pg2kafka is now listening to notifications")
 	waitForNotification(listener, producer, eq, signals)
 }
 
@@ -97,7 +88,7 @@ func main() {
 func ProcessEvents(p Producer, eq *eventqueue.Queue) {
 	events, err := eq.FetchUnprocessedRecords()
 	if err != nil {
-		logger.L.Error("Error listening to pg", zap.Error(err))
+		logrus.Errorf("Error listening to pg %v", err)
 	}
 
 	produceMessages(p, events, eq)
@@ -106,7 +97,7 @@ func ProcessEvents(p Producer, eq *eventqueue.Queue) {
 func processQueue(p Producer, eq *eventqueue.Queue) {
 	pageCount, err := eq.UnprocessedEventPagesCount()
 	if err != nil {
-		logger.L.Fatal("Error selecting count", zap.Error(err))
+		logrus.Fatalf("Error selecting count %v", err)
 	}
 
 	for i := 0; i <= pageCount; i++ {
@@ -128,7 +119,7 @@ func waitForNotification(
 			go func() {
 				err := l.Ping()
 				if err != nil {
-					logger.L.Fatal("Error pinging listener", zap.Error(err))
+					logrus.Fatalf("Error pinging listener %v", err)
 				}
 			}()
 		case <-signals:
@@ -142,10 +133,11 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 	for _, event := range events {
 		msg, err := json.Marshal(event)
 		if err != nil {
-			logger.L.Fatal("Error parsing event", zap.Error(err))
+			logrus.Fatalf("Error parsing event %v", err)
 		}
 
 		topic := topicName(event.TableName)
+		fmt.Printf("ini topic %s\n", topic)
 		message := &kafka.Message{
 			TopicPartition: kafka.TopicPartition{
 				Topic:     &topic,
@@ -156,22 +148,22 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 			Timestamp: event.CreatedAt,
 		}
 		if os.Getenv("DRY_RUN") != "" {
-			logger.L.Info("Would produce message", zap.Any("message", message))
+			logrus.Infof("Would produce message %v", message)
 		} else {
 			err = p.Produce(message, deliveryChan)
 			if err != nil {
-				logger.L.Fatal("Failed to produce", zap.Error(err))
+				logrus.Fatalf("Failed to produce %v", err)
 			}
 			e := <-deliveryChan
 
 			result := e.(*kafka.Message)
 			if result.TopicPartition.Error != nil {
-				logger.L.Fatal("Delivery failed", zap.Error(result.TopicPartition.Error))
+				logrus.Fatalf("Delivery failed %v", result.TopicPartition.Error)
 			}
 		}
 		err = eq.MarkEventAsProcessed(event.ID)
 		if err != nil {
-			logger.L.Fatal("Error marking record as processed", zap.Error(err))
+			logrus.Fatalf("Error marking record as processed %v", err)
 		}
 	}
 }
@@ -180,6 +172,16 @@ func setupProducer() Producer {
 	broker := os.Getenv("KAFKA_BROKER")
 	if broker == "" {
 		panic("missing KAFKA_BROKER environment")
+	}
+
+	username := os.Getenv("KAFKA_USERNAME")
+	if username == "" {
+		panic("missing KAFKA_USERNAME environment")
+	}
+
+	password := os.Getenv("KAFKA_PASSWORD")
+	if password == "" {
+		panic("missing KAFKA_PASSWORD environment")
 	}
 
 	hostname, err := os.Hostname()
@@ -192,6 +194,10 @@ func setupProducer() Producer {
 		"bootstrap.servers": broker,
 		"partitioner":       "murmur2",
 		"compression.codec": "snappy",
+		"sasl.username":     username,
+		"sasl.password":     password,
+		"sasl.mechanism":    "PLAIN",
+		"security.protocol": "SASL_SSL",
 	})
 	if err != nil {
 		panic(errors.Wrap(err, "failed to setup producer"))
@@ -207,7 +213,7 @@ func topicName(tableName string) string {
 func parseDatabaseName(conninfo string) string {
 	dbURL, err := url.Parse(conninfo)
 	if err != nil {
-		logger.L.Fatal("Error parsing db connection string", zap.Error(err))
+		logrus.Fatalf("Error parsing db connection string %v", err)
 	}
 	return strings.TrimPrefix(dbURL.Path, "/")
 }
