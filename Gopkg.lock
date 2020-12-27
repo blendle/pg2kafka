@@ -11,11 +11,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6dfb0a0d2ffb4aed50b1101fab4a559cc690e85a6bb7bc865340d80571cbb908"
+  digest = "1:ef3f4d431a34d53586b3e2e00f3dd2106b523fb1c0f261d559b60eeea6211bd9"
   name = "github.com/buger/jsonparser"
   packages = ["."]
   pruneopts = ""
-  revision = "1a29609e0929ccd5666069e2e7213c2c69fa4ac2"
+  revision = "e015c376c426ffb48c325e47081849584b9457ca"
 
 [[projects]]
   digest = "1:9ebdaf26c9ef6a4ddaf0815a8da7048e8cc2b4fdf76cb72737245e7230c44015"
