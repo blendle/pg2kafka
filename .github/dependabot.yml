@@ -1,0 +1,18 @@
+version: 2
+registries:
+  docker-registry-eu-gcr-io:
+    type: docker-registry
+    url: https://eu.gcr.io
+    username: _json_key
+    password: "${{secrets.DOCKER_REGISTRY_EU_GCR_IO_PASSWORD}}"
+
+updates:
+- package-ecosystem: docker
+  directory: "/"
+  schedule:
+    interval: weekly
+    day: sunday
+    time: "04:00"
+  open-pull-requests-limit: 15
+  registries:
+  - docker-registry-eu-gcr-io
