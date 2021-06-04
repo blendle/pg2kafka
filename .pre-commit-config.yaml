@@ -1,0 +1,82 @@
+
+repos:
+- repo: https://github.com/hadolint/hadolint
+  rev: v2.4.1
+  hooks:
+    - id: hadolint-docker
+      exclude: vendor\/github\.com\/buger\/jsonparser\/Dockerfile
+- repo: git://github.com/pre-commit/pre-commit-hooks
+  rev: v4.0.1
+  hooks:
+    - id: check-added-large-files
+    - id: check-ast
+    - id: check-docstring-first
+    - id: check-merge-conflict
+    - id: check-yaml
+      exclude: templates\/.*
+    - id: check-json
+    - id: debug-statements
+    - id: end-of-file-fixer
+      exclude: vendor\/.*
+    - id: trailing-whitespace
+      exclude: vendor\/.*
+- repo: https://gitlab.com/pycqa/flake8
+  rev: 3.9.2
+  hooks:
+    - id: flake8
+      exclude: \.git, db\/data\/.*
+- repo: https://github.com/tekwizely/pre-commit-golang
+  rev: v0.8.2
+  hooks:
+  #
+  # Go Build
+  #
+  - id: go-build-mod
+  # -   id: go-build-pkg
+  # -   id: go-build-repo-mod
+  # -   id: go-build-repo-pkg
+  #
+  # Go Test
+  #
+  # -   id: go-test-mod
+  # -   id: go-test-pkg
+  # -   id: go-test-repo-mod
+  # -   id: go-test-repo-pkg
+  #
+  # Go Vet
+  #
+  # -   id: go-vet
+  - id: go-vet-mod
+  # -   id: go-vet-pkg
+  # -   id: go-vet-repo-mod
+  # -   id: go-vet-repo-pkg
+  #
+  # GoSec
+  #
+  # -   id: go-sec-mod
+  # -   id: go-sec-pkg
+  # -   id: go-sec-repo-mod
+  # -   id: go-sec-repo-pkg
+  #
+  # Formatters
+  #
+  #-   id: go-fmt
+  #-   id: go-imports # replaces go-fmt
+  - id: go-returns # replaces go-imports & go-fmt
+  #
+  # Style Checkers
+  #
+  - id: go-lint
+  # - id: go-critic
+  #
+  # GolangCI-Lint
+  # - Fast Multi-Linter
+  # - Can be configured to replace MOST other hooks
+  # - Supports repo config file for configuration
+  # - https://github.com/golangci/golangci-lint
+  #
+  # -   id: golangci-lint
+  - id: golangci-lint-mod
+  # -   id: golangci-lint-pkg
+  # -   id: golangci-lint-repo-mod
+  # -   id: golangci-lint-repo-pkg

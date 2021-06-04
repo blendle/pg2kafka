@@ -1,0 +1,4 @@
+ignored:
+  # non-trivial to specify per apk package
+  # assume pinned OS version will not break compatibility
+  - DL3018

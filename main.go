@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	logger "github.com/blendle/go-logger"
 	"github.com/blendle/pg2kafka/eventqueue"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/lib/pq"
@@ -20,6 +19,8 @@ import (
 var (
 	topicNamespace string
 	version        string
+	// L is the package exposed logger
+	L *zap.Logger
 )
 
 // Producer is the minimal required interface pg2kafka requires to produce
@@ -32,35 +33,34 @@ type Producer interface {
 }
 
 func main() {
-	conf := &logger.Config{
-		App:         "pg2kafka",
-		Tier:        "stream-processor",
-		Version:     version,
-		Production:  os.Getenv("ENV") == "production",
-		Environment: os.Getenv("ENV"),
+	var err error
+	L, err = zap.NewProduction()
+	if os.Getenv("ENV") != "production" {
+		L, err = zap.NewDevelopment()
 	}
-
-	logger.Init(conf)
+	if err != nil {
+		L.Fatal("Error setting up logger", zap.Error(err))
+	}
 
 	conninfo := os.Getenv("DATABASE_URL")
 	topicNamespace = parseTopicNamespace(os.Getenv("TOPIC_NAMESPACE"), parseDatabaseName(conninfo))
 
 	eq, err := eventqueue.New(conninfo)
 	if err != nil {
-		logger.L.Fatal("Error opening db connection", zap.Error(err))
+		L.Fatal("Error opening db connection", zap.Error(err))
 	}
 	defer func() {
 		if cerr := eq.Close(); cerr != nil {
-			logger.L.Fatal("Error closing db connection", zap.Error(cerr))
+			L.Fatal("Error closing db connection", zap.Error(cerr))
 		}
 	}()
 
 	if os.Getenv("PERFORM_MIGRATIONS") == "true" {
 		if cerr := eq.ConfigureOutboundEventQueueAndTriggers("./sql"); cerr != nil {
-			logger.L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(cerr))
+			L.Fatal("Error configuring outbound_event_queue and triggers", zap.Error(cerr))
 		}
 	} else {
-		logger.L.Info("Not performing database migrations due to missing `PERFORM_MIGRATIONS`.")
+		L.Info("Not performing database migrations due to missing `PERFORM_MIGRATIONS`.")
 	}
 
 	producer := setupProducer()
@@ -69,16 +69,16 @@ func main() {
 
 	reportProblem := func(ev pq.ListenerEventType, err error) {
 		if err != nil {
-			logger.L.Error("Error handling postgres notify", zap.Error(err))
+			L.Error("Error handling postgres notify", zap.Error(err))
 		}
 	}
 	listener := pq.NewListener(conninfo, 10*time.Second, time.Minute, reportProblem)
 	if err := listener.Listen("outbound_event_queue"); err != nil {
-		logger.L.Error("Error listening to pg", zap.Error(err))
+		L.Error("Error listening to pg", zap.Error(err))
 	}
 	defer func() {
 		if cerr := listener.Close(); cerr != nil {
-			logger.L.Error("Error closing listener", zap.Error(cerr))
+			L.Error("Error closing listener", zap.Error(cerr))
 		}
 	}()
 
@@ -88,7 +88,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
-	logger.L.Info("pg2kafka is now listening to notifications")
+	L.Info(fmt.Sprintf("pg2kafka[commit:%s] is now listening to notifications", version))
 	waitForNotification(listener, producer, eq, signals)
 }
 
@@ -97,7 +97,7 @@ func main() {
 func ProcessEvents(p Producer, eq *eventqueue.Queue) {
 	events, err := eq.FetchUnprocessedRecords()
 	if err != nil {
-		logger.L.Error("Error listening to pg", zap.Error(err))
+		L.Error("Error listening to pg", zap.Error(err))
 	}
 
 	produceMessages(p, events, eq)
@@ -106,7 +106,7 @@ func ProcessEvents(p Producer, eq *eventqueue.Queue) {
 func processQueue(p Producer, eq *eventqueue.Queue) {
 	pageCount, err := eq.UnprocessedEventPagesCount()
 	if err != nil {
-		logger.L.Fatal("Error selecting count", zap.Error(err))
+		L.Fatal("Error selecting count", zap.Error(err))
 	}
 
 	for i := 0; i <= pageCount; i++ {
@@ -128,7 +128,7 @@ func waitForNotification(
 			go func() {
 				err := l.Ping()
 				if err != nil {
-					logger.L.Fatal("Error pinging listener", zap.Error(err))
+					L.Fatal("Error pinging listener", zap.Error(err))
 				}
 			}()
 		case <-signals:
@@ -142,7 +142,7 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 	for _, event := range events {
 		msg, err := json.Marshal(event)
 		if err != nil {
-			logger.L.Fatal("Error parsing event", zap.Error(err))
+			L.Fatal("Error parsing event", zap.Error(err))
 		}
 
 		topic := topicName(event.TableName)
@@ -156,22 +156,22 @@ func produceMessages(p Producer, events []*eventqueue.Event, eq *eventqueue.Queu
 			Timestamp: event.CreatedAt,
 		}
 		if os.Getenv("DRY_RUN") != "" {
-			logger.L.Info("Would produce message", zap.Any("message", message))
+			L.Info("Would produce message", zap.Any("message", message))
 		} else {
 			err = p.Produce(message, deliveryChan)
 			if err != nil {
-				logger.L.Fatal("Failed to produce", zap.Error(err))
+				L.Fatal("Failed to produce", zap.Error(err))
 			}
 			e := <-deliveryChan
 
 			result := e.(*kafka.Message)
 			if result.TopicPartition.Error != nil {
-				logger.L.Fatal("Delivery failed", zap.Error(result.TopicPartition.Error))
+				L.Fatal("Delivery failed", zap.Error(result.TopicPartition.Error))
 			}
 		}
 		err = eq.MarkEventAsProcessed(event.ID)
 		if err != nil {
-			logger.L.Fatal("Error marking record as processed", zap.Error(err))
+			L.Fatal("Error marking record as processed", zap.Error(err))
 		}
 	}
 }
@@ -207,7 +207,7 @@ func topicName(tableName string) string {
 func parseDatabaseName(conninfo string) string {
 	dbURL, err := url.Parse(conninfo)
 	if err != nil {
-		logger.L.Fatal("Error parsing db connection string", zap.Error(err))
+		L.Fatal("Error parsing db connection string", zap.Error(err))
 	}
 	return strings.TrimPrefix(dbURL.Path, "/")
 }
