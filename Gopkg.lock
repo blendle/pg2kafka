@@ -3,11 +3,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:518723f68a6013939a5f71851da62cc3033e27be18944d7b70f9a9228cf464b5"
+  digest = "1:f3c002583dac898af878fb3497134ca961ea644a2f142c430fcbfd6959295ad4"
   name = "github.com/blendle/go-logger"
   packages = ["."]
   pruneopts = ""
-  revision = "2399adc0cd390782c11de7e2dd0bbcd5d4e7a110"
+  revision = "d660ef688e6c9b17cf2d851df8ffde52a364e68a"
+
+[[projects]]
+  digest = "1:ce52e7f1bc7f2507a65d21c3b88dac6d6b148232aad39b08393ea97f85a67f00"
+  name = "github.com/blendle/zapdriver"
+  packages = ["."]
+  pruneopts = ""
+  revision = "63327ce6a5a7d5cc97dbbeab5cdc771cfc62d1e2"
+  version = "v1.1.6"
 
 [[projects]]
   branch = "master"
@@ -61,7 +69,7 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:cfeddca8479edac1039a52dac1ff6e7a76252ebaecb86680383b0522423b7565"
+  digest = "1:984e93aca9088b440b894df41f2043b6a3db8f9cf30767032770bfc4796993b0"
   name = "go.uber.org/zap"
   packages = [
     ".",
@@ -70,10 +78,11 @@
     "internal/color",
     "internal/exit",
     "zapcore",
+    "zaptest/observer",
   ]
   pruneopts = ""
-  revision = "35aad584952c3e7020db7b839f6b102de6271f89"
-  version = "v1.7.1"
+  revision = "27376062155ad36be76b0f12cf1572a221d3a48c"
+  version = "v1.10.0"
 
 [solve-meta]
   analyzer-name = "dep"
